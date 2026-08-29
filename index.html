@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050505">
+<title>Miércoles Electrónicos</title>
+
+<style>
+:root{
+  --bg:#050505;
+  --text:#f2f2f2;
+  --muted:#666;
+  --line:#222;
+  --red:#ff1d38;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  min-height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:monospace;
+}
+
+body{
+  padding:0 20px;
+}
+
+.wrap{
+  width:100%;
+  max-width:720px;
+  margin:0 auto;
+  padding:38px 0 90px;
+  position:relative;
+}
+
+.system{
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:1.5px;
+  margin-bottom:22px;
+}
+
+.logo{
+  display:block;
+  width:290px;
+  max-width:100%;
+  height:auto;
+  margin:0;
+}
+
+.session{
+  margin-top:14px;
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:1px;
+}
+
+.line{
+  height:1px;
+  background:var(--line);
+  margin:30px 0;
+}
+
+.title{
+  font-size:17px;
+  margin-bottom:14px;
+}
+
+.prompt{
+  color:var(--red);
+}
+
+.description{
+  font-size:12px;
+  color:#aaa;
+  line-height:1.7;
+  margin:10px 0;
+}
+
+.notice{
+  margin:22px 0;
+  padding:16px;
+  border-left:2px solid var(--red);
+  background:#080808;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.75;
+}
+
+.notice strong{
+  color:#f2f2f2;
+}
+
+.steps{
+  margin:24px 0;
+}
+
+.step{
+  display:flex;
+  gap:14px;
+  margin:12px 0;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.num{
+  min-width:24px;
+  color:var(--muted);
+}
+
+.button{
+  display:block;
+  width:290px;
+  max-width:100%;
+  padding:15px 16px;
+  margin-top:24px;
+  background:var(--red);
+  color:#fff;
+  text-decoration:none;
+  text-align:center;
+  font:700 12px monospace;
+  letter-spacing:1px;
+}
+
+.small{
+  width:290px;
+  max-width:100%;
+  margin-top:15px;
+  color:#666;
+  font-size:9px;
+  line-height:1.7;
+}
+
+.footer{
+  margin-top:48px;
+  color:#444;
+  font-size:9px;
+  line-height:1.8;
+}
+
+@media(max-width:600px){
+  body{padding:0 14px}
+  .wrap{width:90vw;padding:24px 0 90px}
+  .system{font-size:10px}
+  .logo{width:min(100%,340px)}
+  .session{font-size:11px}
+  .title{font-size:19px}
+  .description{font-size:14px;line-height:1.65}
+  .notice,.step{font-size:13px}
+  .button{width:100%}
+  .small{width:100%;font-size:10px}
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+
+  <div class="system">
+    ME // COMMUNITY ACCESS SYSTEM
+  </div>
+
+  <img
+    class="logo"
+    src="me-logo.png"
+    alt="Miércoles Electrónicos"
+  >
+
+  <div class="session">
+    SESSION_071 // UMHO_MOONWALKER
+  </div>
+
+  <div class="line"></div>
+
+  <div class="title">
+    <span class="prompt">&gt;</span>
+    ABRE TU ACCESO
+  </div>
+
+  <div class="description">
+    Estás entrando desde Instagram.
+    Para continuar con tu check-in o gestionar tu reserva,
+    abre el acceso en Safari.
+  </div>
+
+  <div class="notice">
+    <strong>IMPORTANTE</strong><br>
+    El navegador interno de Instagram puede impedir
+    que el sistema de acceso funcione correctamente.
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <span class="num">01</span>
+      <span>Abre el menú <strong>⋯</strong> de Instagram.</span>
+    </div>
+
+    <div class="step">
+      <span class="num">02</span>
+      <span>Selecciona <strong>“Abrir en Safari”</strong>.</span>
+    </div>
+
+    <div class="step">
+      <span class="num">03</span>
+      <span>Ingresa tu RUT y continúa normalmente.</span>
+    </div>
+
+  </div>
+
+  <a
+    class="button"
+    href="https://script.google.com/macros/s/AKfycbxqR-Qd4-Ed4M-JgKXLsHpaLrKEvvTFmGTVIyTy5hctLos-tXjn5XX-zdc10ck9-QEm/exec"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    ABRIR ACCESO
+  </a>
+
+  <div class="small">
+    Si el botón permanece dentro de Instagram,
+    utiliza “Abrir en Safari” desde el menú de Instagram.
+  </div>
+
+  <div class="footer">
+    COMMUNITY SYSTEM // 2026<br>
+    SESSION_071 // ACCESS CONTROL
+  </div>
+
+</main>
+</body>
+</html>
