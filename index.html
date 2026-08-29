@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta name="theme-color" content="#050505">
+
+  <title>Miércoles Electrónicos</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      background: #050505;
+      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      padding: 36px 22px 28px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* =========================
+       LOGO
+       ========================= */
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .hearts {
+      position: relative;
+      width: 82px;
+      height: 42px;
+      flex-shrink: 0;
+    }
+
+    .heart {
+      position: absolute;
+      width: 33px;
+      height: 33px;
+      background: #ff1638;
+      transform: rotate(-45deg);
+      top: 5px;
+      border-radius: 4px;
+    }
+
+    .heart::before,
+    .heart::after {
+      content: "";
+      position: absolute;
+      width: 33px;
+      height: 33px;
+      background: #ff1638;
+      border-radius: 50%;
+    }
+
+    .heart::before {
+      top: -16px;
+      left: 0;
+    }
+
+    .heart::after {
+      top: 0;
+      left: 16px;
+    }
+
+    .heart:nth-child(1) {
+      left: 0;
+    }
+
+    .heart:nth-child(2) {
+      left: 24px;
+      opacity: 0.92;
+    }
+
+    .heart:nth-child(3) {
+      left: 48px;
+      opacity: 0.84;
+    }
+
+    .me {
+      font-family: monospace;
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1;
+      color: #ff1638;
+      letter-spacing: -3px;
+    }
+
+    .word {
+      margin-left: -5px;
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 0.85;
+      color: #ffffff;
+    }
+
+    .word span {
+      display: block;
+    }
+
+    .session {
+      font-family: monospace;
+      color: #666666;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      margin-top: 8px;
+    }
+
+    .line {
+      height: 1px;
+      background: #242424;
+      margin: 30px 0;
+    }
+
+    /* =========================
+       CONTENT
+       ========================= */
+
+    .prompt {
+      color: #ff1638;
+      font-family: monospace;
+      font-size: 15px;
+      margin-right: 7px;
+    }
+
+    .title {
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 18px;
+    }
+
+    .description {
+      color: #bdbdbd;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 28px;
+    }
+
+    .label {
+      display: block;
+      font-family: monospace;
+      color: #777777;
+      font-size: 11px;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .rut {
+      width: 100%;
+      max-width: 430px;
+      height: 58px;
+      border: 1px solid #333333;
+      background: #050505;
+      color: #ffffff;
+      padding: 0 16px;
+      font-family: monospace;
+      font-size: 17px;
+      outline: none;
+      margin-bottom: 14px;
+    }
+
+    .rut:focus {
+      border-color: #ff1638;
+    }
+
+    .button {
+      width: 100%;
+      max-width: 430px;
+      height: 58px;
+      border: 0;
+      background: #ff1638;
+      color: #ffffff;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .footer {
+      margin-top: 70px;
+      font-family: monospace;
+      color: #454545;
+      font-size: 10px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 480px) {
+
+      .page {
+        padding: 28px 14px 22px;
+      }
+
+      .brand {
+        gap: 7px;
+      }
+
+      .hearts {
+        width: 70px;
+        transform: scale(0.86);
+        transform-origin: left center;
+        margin-right: -10px;
+      }
+
+      .me {
+        font-size: 32px;
+      }
+
+      .word {
+        font-size: 17px;
+      }
+
+      .title {
+        font-size: 20px;
+      }
+
+      .description {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="page">
+
+    <div class="container">
+
+      <div class="brand">
+
+        <div class="hearts">
+          <div class="heart"></div>
+          <div class="heart"></div>
+          <div class="heart"></div>
+        </div>
+
+        <div class="me">ME</div>
+
+        <div class="word">
+          <span>MIÉRCOLES</span>
+          <span>ELECTRÓNICOS</span>
+        </div>
+
+      </div>
+
+      <div class="session">
+        SESSION_071 // UMHO_MOONWALKER
+      </div>
+
+      <div class="line"></div>
+
+      <div class="title">
+        <span class="prompt">&gt;</span>
+        COMMUNITY ACCESS
+      </div>
+
+      <div class="description">
+        Tu recarga de buena música a media semana comienza aquí!
+      </div>
+
+      <div class="description">
+        Ingresa tu RUT para continuar:
+      </div>
+
+      <label class="label" for="rut">
+        RUT
+      </label>
+
+      <input
+        id="rut"
+        class="rut"
+        type="text"
+        inputmode="text"
+        autocomplete="off"
+        placeholder="12.345.678-9"
+      >
+
+      <button
+        class="button"
+        type="button"
+        onclick="continuar()"
+      >
+        ENTRAR A LA SESIÓN
+      </button>
+
+      <div class="footer">
+        COMMUNITY SYSTEM // 2026<br>
+        SESSION_071 // ACCESS CONTROL
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    function continuar() {
+
+      const rut = document.getElementById('rut').value.trim();
+
+      if (!rut) {
+        alert('DEBES INGRESAR TU RUT.');
+        return;
+      }
+
+      /*
+       * POR AHORA NO CONECTAMOS EL BACKEND.
+       * Esta primera versión existe solamente
+       * para comprobar que GitHub Pages funciona
+       * correctamente dentro de Instagram.
+       */
+
+      alert('OK — INTERFAZ FUNCIONANDO.');
+    }
+  </script>
+
+</body>
+</html>
