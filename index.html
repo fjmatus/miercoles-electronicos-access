@@ -38,6 +38,9 @@ button:disabled{opacity:.5;cursor:wait}
 .value{text-align:right}
 .footer{margin-top:48px;color:#444;font-size:9px;line-height:1.8}
 .small{margin-top:14px;color:#666;font-size:9px;line-height:1.7}
+
+.heartMark{position:fixed;right:24px;bottom:22px;width:54px;height:auto;z-index:20;opacity:.95;pointer-events:none}
+.heartMark img{display:block;width:100%;height:auto}
 @media(max-width:600px){
  body{padding:0 14px}
  .wrap{width:90vw;padding:24px 0 90px}
@@ -59,6 +62,7 @@ button:disabled{opacity:.5;cursor:wait}
 <div class="line"></div>
 <div id="app"></div>
 <div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_071 // ACCESS CONTROL</div>
+<div class="heartMark" aria-hidden="true"><img src="data:image/png;base64,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" alt=""></div>
 </main>
 
 <script>
@@ -121,9 +125,9 @@ function home() {
     '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
     '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Ingresa tu RUT para continuar:</div>'+
     '<label>RUT</label>'+
-    '<input id="rutInput" type="text" placeholder="15.383.513-6" autocomplete="off">'+
+    '<input id="rutInput" type="text" placeholder="17394729-k" autocomplete="off">'+
     '<button id="go">ENTRAR A LA SESIÓN</button>'+
-    '<div class="small">Tu RUT nos permite identificar tu historial dentro de la comunidad.</div>'
+    '<div class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
   );
   document.getElementById('go').onclick = consult;
   document.getElementById('rutInput').addEventListener('keydown', e => { if(e.key === 'Enter') consult(); });
