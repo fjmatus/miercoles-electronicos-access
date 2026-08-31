@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050505">
+<title>Miércoles Electrónicos</title>
+<style>
+:root{--bg:#050505;--text:#f2f2f2;--muted:#666;--line:#222;--red:#ff1d38;--green:#00ff66;--yellow:#ffd60a}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:monospace}
+body{padding:0 20px}
+.wrap{width:100%;max-width:720px;margin:0 auto;padding:38px 0 90px;position:relative}
+.system{color:var(--muted);font-size:10px;letter-spacing:1.5px;margin-bottom:22px}
+.logo{display:block;width:290px;max-width:100%;height:auto;margin:0}
+.session{margin-top:14px;color:var(--muted);font-size:10px;letter-spacing:1px}
+.line{height:1px;background:var(--line);margin:30px 0}
+.title{font-size:17px;margin-bottom:14px}
+.prompt{color:var(--red)}
+.description{font-size:12px;color:#aaa;line-height:1.7;margin:10px 0}
+label{display:block;margin:20px 0 8px;color:var(--muted);font-size:10px;letter-spacing:1.5px}
+input,select{width:100%;padding:15px;background:#000;color:#fff;border:1px solid #292929;font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--green)}
+button{width:100%;margin-top:18px;padding:16px;background:var(--red);color:#fff;border:0;font:inherit;font-weight:700;cursor:pointer}
+button.secondary{background:#000;color:#fff;border:1px solid #fff}
+button:disabled{opacity:.5;cursor:wait}
+#rutInput{width:290px;max-width:100%}
+.status{margin:20px 0;padding:16px;border-left:2px solid var(--green);background:#080d09;font-size:12px;line-height:1.7}
+.error{border-left-color:var(--red);background:#0d0707}
+.warning{border-left-color:var(--yellow);background:#0d0c07}
+.tramos{border:1px solid var(--line);margin:20px 0}
+.tramo{display:flex;justify-content:space-between;gap:15px;padding:12px;border-bottom:1px solid #161616;font-size:11px}
+.tramo:last-child{border:0}
+.data{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:20px 0}
+.row{display:flex;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:1px solid #151515;font-size:11px}
+.row:last-child{border:0}
+.key{color:#666}
+.value{text-align:right}
+.footer{margin-top:48px;color:#444;font-size:9px;line-height:1.8}
+.small{margin-top:14px;color:#666;font-size:9px;line-height:1.7}
+@media(max-width:600px){
+ body{padding:0 14px}
+ .wrap{width:90vw;padding:24px 0 90px}
+ .logo{width:min(100%,340px)}
+ .session{font-size:12px}
+ .title{font-size:20px;line-height:1.3}
+ .description,.status{font-size:14px;line-height:1.65}
+ label{font-size:11px}
+ input,select,button{min-height:54px;padding:15px;font-size:16px}
+ .tramo{font-size:13px;padding:14px 12px}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+<div class="system">ME // COMMUNITY ACCESS SYSTEM</div>
+<img class="logo" src="me-logo.png" alt="Miércoles Electrónicos">
+<div class="session">SESSION_071 // UMHO_MOONWALKER</div>
+<div class="line"></div>
+<div id="app"></div>
+<div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_071 // ACCESS CONTROL</div>
+</main>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxqR-Qd4-Ed4M-JgKXLsHpaLrKEvvTFmGTVIyTy5hctLos-tXjn5XX-zdc10ck9-QEm/exec';
+const SESSION = 71;
+let currentRut = '';
+let currentEmail = '';
+let currentData = null;
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function money(v) {
+  const n = Number(v || 0);
+  return n === 0 ? 'GRATIS' : '$' + n.toLocaleString('es-CL');
+}
+function setApp(html) { document.getElementById('app').innerHTML = html; }
+function loading(title, sub) {
+  setApp('<div class="title"><span class="prompt">&gt;</span> '+esc(title)+'</div>'+
+         '<div class="status">'+esc(sub)+'</div>');
+}
+function error(msg) {
+  setApp('<div class="title"><span class="prompt">&gt;</span> ERROR</div>'+
+         '<div class="status error">'+esc(msg)+'</div>'+
+         '<button class="secondary" onclick="home()">BACK</button>');
+}
+
+function apiCall(fn, args, done) {
+  const callbackName = 'meCb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  let script = document.createElement('script');
+  let finished = false;
+  const cleanup = () => {
+    try { delete window[callbackName]; } catch(e) {}
+    if (script && script.parentNode) script.parentNode.removeChild(script);
+  };
+  window[callbackName] = function(result) {
+    finished = true;
+    cleanup();
+    done(null, result);
+  };
+  script.onerror = function() {
+    if (finished) return;
+    finished = true;
+    cleanup();
+    done(new Error('NO SE PUDO CONECTAR CON LA API.'), null);
+  };
+  const params = new URLSearchParams();
+  params.set('api','1');
+  params.set('fn',fn);
+  params.set('callback',callbackName);
+  params.set('args',JSON.stringify(args || []));
+  script.src = API_URL + '?' + params.toString();
+  document.head.appendChild(script);
+}
+
+function home() {
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
+    '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Ingresa tu RUT para continuar:</div>'+
+    '<label>RUT</label>'+
+    '<input id="rutInput" type="text" placeholder="15.383.513-6" autocomplete="off">'+
+    '<button id="go">ENTRAR A LA SESIÓN</button>'+
+    '<div class="small">Tu RUT nos permite identificar tu historial dentro de la comunidad.</div>'
+  );
+  document.getElementById('go').onclick = consult;
+  document.getElementById('rutInput').addEventListener('keydown', e => { if(e.key === 'Enter') consult(); });
+  document.getElementById('rutInput').focus();
+}
+
+function renderConditions(list) {
+  if(!Array.isArray(list) || !list.length) return '';
+  return '<div class="tramos">'+list.map(t =>
+    '<div class="tramo"><span>'+esc(t.desde)+' — '+esc(t.hasta)+'</span><strong>'+money(t.valor)+'</strong></div>'
+  ).join('')+'</div>';
+}
+
+function renderReference(data, action) {
+  const refs = Array.isArray(data.referencias) ? data.referencias : [];
+  return '<label>¿A QUIÉN VAS A ESCUCHAR PRINCIPALMENTE O POR QUIÉN FUISTE INVITADO? (OBLIGATORIO)</label>'+
+    '<select id="ref"><option value="">SELECCIONA UNA OPCIÓN</option>'+
+      refs.map(r => '<option value="'+esc(r)+'">'+esc(r)+'</option>').join('')+
+    '</select>'+
+    '<div id="otroBox" style="display:none"><label>¿QUIÉN?</label><input id="otro" placeholder="Escribe el nombre"></div>'+
+    '<button id="actionBtn">'+(action==='reserve'?'FINALIZAR MI CHECKIN':'CONFIRMAR SOLICITUD')+'</button>';
+}
+
+function bindReference(data, action) {
+  const ref = document.getElementById('ref');
+  const btn = document.getElementById('actionBtn');
+  const otherBox = document.getElementById('otroBox');
+  if(btn) btn.disabled = true;
+  if(ref) ref.onchange = function() {
+    if(otherBox) otherBox.style.display = this.value === 'OTRO' ? 'block' : 'none';
+    if(btn) btn.disabled = !this.value;
+  };
+  btn.onclick = function() {
+    const referencia = ref.value;
+    const otro = document.getElementById('otro') ? document.getElementById('otro').value.trim() : '';
+    if(!referencia) return error('DEBES SELECCIONAR UNA REFERENCIA.');
+    if(referencia === 'OTRO' && !otro) return error('DEBES INDICAR QUIÉN.');
+    btn.disabled = true;
+    btn.textContent = 'GUARDANDO...';
+    const fn = action === 'reserve' ? 'crearReserva' : (action === 'newRequest' ? 'solicitarAccesoNuevo' : 'solicitarAcceso');
+    const args = action === 'newRequest'
+      ? [data.perfil || {
+          documento:currentRut,email:currentEmail,nombre:data.nombre||'',apellido:data.apellido||'',
+          fechaNacimiento:data.fechaNacimiento||'',sexo:data.sexo||'',instagram:data.instagram||'',telefono:data.telefono||''
+        }, referencia, otro]
+      : [currentRut, currentEmail, referencia, otro];
+    if(action === 'newRequest' && args[0]) {
+      args[0].documento = currentRut;
+      args[0].email = currentEmail;
+    }
+    apiCall(fn, args, function(err, r) {
+      if(err) return error(err.message);
+      if(!r || !r.ok) return error(r && r.mensaje ? r.mensaje : 'NO SE PUDO GUARDAR.');
+      if(action === 'reserve') {
+        setApp(
+          '<div class="title"><span class="prompt">&gt;</span> ACCESS CONFIRMED</div>'+
+          '<div class="description"><strong>'+esc(data.nombre||'')+' '+esc(data.apellido||'')+'</strong></div>'+
+          (data.validadoAnteriormente ? '<div class="description">ESTADO: <strong>MIEMBRO</strong></div>' : '')+
+          '<div class="status">TU CHECKIN PARA LA SESIÓN 71 · UMHO MOONWALKER YA ESTÁ CONFIRMADO.</div>'+
+          renderConditions(data.condiciones)+
+          '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu carnet de identidad.</strong></div>'+
+          '<button class="secondary" onclick="home()">BACK</button>'
+        );
+      } else {
+        setApp(
+          '<div class="title"><span class="prompt">&gt;</span> REQUEST RECEIVED</div>'+
+          '<div class="status">¡Tu solicitud fue enviada correctamente!</div>'+
+          '<div class="description">La respuesta será enviada a tu correo electrónico o puedes consultar nuevamente usando tu RUT.</div>'+
+          '<button class="secondary" onclick="home()">BACK</button>'
+        );
+      }
+    });
+  };
+}
+
+function renderPendingRequest(res) {
+  const status = res.solicitudEstado === 'PENDIENTE'
+    ? 'TU SOLICITUD PARA LA SESIÓN 71 YA FUE RECIBIDA Y ESTÁ PENDIENTE DE APROBACIÓN.'
+    : 'TU SOLICITUD PARA LA SESIÓN 71 YA FUE PROCESADA.';
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> REQUEST STATUS</div>'+
+    '<div class="description"><strong>'+esc((res.nombre||'')+' '+(res.apellido||''))+'</strong></div>'+
+    (res.validadoAnteriormente ? '<div class="description">ESTADO: <strong>MIEMBRO</strong></div>' : '')+
+    '<div class="status">'+status+'</div>'+
+    '<div class="description">Con tu RUT puedes consultar siempre el estado de tu solicitud.</div>'+
+    '<button class="secondary" onclick="home()">BACK</button>'
+  );
+}
+
+function renderExisting(res) {
+  if(res.reservaActual) {
+    setApp(
+      '<div class="title"><span class="prompt">&gt;</span> ACCESS CONFIRMED</div>'+
+      '<div class="description"><strong>'+esc((res.nombre||'')+' '+(res.apellido||''))+'</strong></div>'+
+      (res.validadoAnteriormente ? '<div class="description">ESTADO: <strong>MIEMBRO</strong></div>' : '')+
+      '<div class="status">TU CHECKIN PARA LA SESIÓN 71 · UMHO MOONWALKER YA ESTÁ CONFIRMADO.</div>'+
+      renderConditions(res.condiciones)+
+      '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu carnet de identidad.</strong></div>'+
+      '<button class="secondary" onclick="home()">BACK</button>'
+    );
+    return;
+  }
+  const data = Object.assign({}, res, {sesion:SESSION});
+  if(res.validadoAnteriormente) {
+    setApp(
+      '<div class="title"><span class="prompt">&gt;</span> CHECKIN</div>'+
+      '<div class="status">Tu checkin para la sesión <strong>71</strong> está listo para ser confirmado!</div>'+
+      renderReference(data,'reserve')
+    );
+    bindReference(data,'reserve');
+  } else {
+    setApp(
+      '<div class="title"><span class="prompt">&gt;</span> REQUEST READY</div>'+
+      '<div class="description"><strong>'+esc((res.nombre||'')+' '+(res.apellido||''))+'</strong></div>'+
+      '<div class="description">TU FICHA YA ESTÁ REGISTRADA EN NUESTRA COMUNIDAD.</div>'+
+      '<div class="description">NO TIENES UNA SOLICITUD PARA ESTA SESIÓN.</div>'+
+      '<div class="description">COMPLETA ESTE ÚLTIMO PASO PARA ENVIAR TU SOLICITUD DE ACCESO.</div>'+
+      renderReference(data,'newRequestExisting')
+    );
+    bindReference(data,'newRequestExisting');
+  }
+}
+
+function renderNewUserProfile(rut, refs) {
+  currentRut = rut;
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> VERIFY EMAIL</div>'+
+    '<div class="description">Ingresa tu correo para enviar un código de verificación.</div>'+
+    '<label>EMAIL</label><input id="newEmail" type="email" placeholder="tu@email.com" autocomplete="email">'+
+    '<div id="verifyStatus"></div>'+
+    '<button id="sendCode">ENVIAR CÓDIGO</button>'+
+    '<button class="secondary" onclick="home()">BACK</button>'
+  );
+  document.getElementById('sendCode').onclick = function() {
+    const email = document.getElementById('newEmail').value.trim().toLowerCase();
+    if(!email || email.indexOf('@') < 1) {
+      document.getElementById('verifyStatus').innerHTML = '<div class="status error">DEBES INGRESAR UN CORREO VÁLIDO.</div>';
+      return;
+    }
+    this.disabled = true;
+    this.textContent = 'CONSULTANDO...';
+    apiCall('consultarEmail',[email],function(err, member) {
+      if(err) return showVerifyError(err.message);
+      if(!member || !member.ok) return showVerifyError(member && member.mensaje || 'NO SE PUDO CONSULTAR LA COMUNIDAD.');
+      if(member.existe && member.tieneRut) return showVerifyError(member.rut !== currentRut ? 'ESTE CORREO YA ESTÁ ASOCIADO A OTRO RUT.' : 'ESTE CORREO YA ESTÁ REGISTRADO PARA ESTE RUT.');
+      apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],function(err2, pending) {
+        if(err2) return showVerifyError(err2.message);
+        if(pending && pending.solicitudExiste) {
+          setApp('<div class="title"><span class="prompt">&gt;</span> REQUEST STATUS</div>'+
+                 '<div class="status">TU SOLICITUD PARA LA SESIÓN 71 YA FUE RECIBIDA Y ESTÁ PENDIENTE DE APROBACIÓN.</div>'+
+                 '<button class="secondary" onclick="home()">BACK</button>');
+          return;
+        }
+        currentEmail = email;
+        apiCall('enviarCodigo',[email],function(err3, sent) {
+          if(err3) return showVerifyError(err3.message);
+          if(!sent || !sent.ok) return showVerifyError(sent && sent.mensaje || 'NO SE PUDO ENVIAR EL CÓDIGO.');
+          renderVerifyCode(refs);
+        });
+      });
+    });
+  };
+}
+
+function showVerifyError(msg) {
+  const box=document.getElementById('verifyStatus');
+  if(box) box.innerHTML='<div class="status error">'+esc(msg)+'</div>';
+  const b=document.getElementById('sendCode');
+  if(b) { b.disabled=false; b.textContent='ENVIAR CÓDIGO'; }
+}
+
+function renderVerifyCode(refs) {
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> VERIFY EMAIL</div>'+
+    '<div class="description">Enviamos un código a <strong>'+esc(currentEmail)+'</strong>.</div>'+
+    '<label>CÓDIGO DE VERIFICACIÓN</label>'+
+    '<input id="emailCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">'+
+    '<button id="verifyBtn">VERIFICAR CORREO</button>'+
+    '<button class="secondary" onclick="home()">BACK</button>'
+  );
+  const input=document.getElementById('emailCode');
+  input.oninput=()=>{ input.value=input.value.replace(/\D/g,'').slice(0,6); };
+  input.onkeydown=e=>{ if(e.key==='Enter') document.getElementById('verifyBtn').click(); };
+  document.getElementById('verifyBtn').onclick=function() {
+    const code=input.value.replace(/\D/g,'').slice(0,6);
+    if(code.length!==6) return error('INGRESA EL CÓDIGO DE 6 DÍGITOS.');
+    this.disabled=true; this.textContent='VALIDANDO...';
+    apiCall('verificarCodigo',[currentEmail,code],function(err,r) {
+      if(err) return error(err.message);
+      if(!r || !r.ok) return error(r && r.mensaje || 'CÓDIGO INCORRECTO O EXPIRADO.');
+      apiCall('consultarEmail',[currentEmail],function(err2,member) {
+        if(err2) return error(err2.message);
+        if(!member || !member.ok) return error(member && member.mensaje || 'NO SE PUDO CONSULTAR EL ESTADO DEL CORREO.');
+        renderAssistantProfile(currentEmail, refs, !!member.validadoAlgunaVez);
+      });
+    });
+  };
+  setTimeout(()=>input.focus(),50);
+}
+
+function renderAssistantProfile(email, refs, validadoAnteriormente) {
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> ASSISTANT PROFILE</div>'+
+    '<div class="status">CORREO VERIFICADO CORRECTAMENTE.</div>'+
+    '<div class="description">'+(validadoAnteriormente
+      ? 'Genial! Ya has sido parte de nuestras sesiones anteriormente. Ahora completa tu ficha una sola vez.'
+      : 'Ahora completa tu ficha de asistente.')+'</div>'+
+    '<label>EMAIL VERIFICADO</label><input id="newEmailVerified" type="email" value="'+esc(email)+'" readonly>'+
+    '<label>NOMBRE</label><input id="newNombre" type="text" placeholder="Nombre">'+
+    '<label>APELLIDO</label><input id="newApellido" type="text" placeholder="Apellido">'+
+    '<label>FECHA DE NACIMIENTO</label><input id="newNacimiento" type="date">'+
+    '<label>SEXO</label><select id="newSexo"><option value="">SELECCIONA UNA OPCIÓN</option><option>HOMBRE</option><option>MUJER</option><option>OTRO</option></select>'+
+    '<label>INSTAGRAM</label><input id="newInstagram" placeholder="@tuinstagram">'+
+    '<label>TELÉFONO</label><input id="newTelefono" placeholder="+569...">'+
+    '<div id="profileStatus"></div>'+
+    '<button id="saveProfileBtn">CONTINUAR</button>'+
+    '<button class="secondary" onclick="home()">BACK</button>'
+  );
+  document.getElementById('saveProfileBtn').onclick=function() {
+    const datos={
+      documento:currentRut,email:email,
+      nombre:document.getElementById('newNombre').value.trim(),
+      apellido:document.getElementById('newApellido').value.trim(),
+      fechaNacimiento:document.getElementById('newNacimiento').value,
+      sexo:document.getElementById('newSexo').value,
+      instagram:document.getElementById('newInstagram').value.trim(),
+      telefono:document.getElementById('newTelefono').value.trim()
+    };
+    if(!datos.nombre||!datos.apellido||!datos.fechaNacimiento||!datos.sexo||!datos.instagram||!datos.telefono){
+      document.getElementById('profileStatus').innerHTML='<div class="status error">DEBES COMPLETAR TODA LA FICHA DE ASISTENTE.</div>';
+      return;
+    }
+    this.disabled=true; this.textContent='GUARDANDO FICHA...';
+    apiCall('saveNewProfile',[datos],function(err,saved) {
+      if(err) return error(err.message);
+      if(!saved || !saved.ok) return error(saved && saved.mensaje || 'NO SE PUDO GUARDAR LA FICHA.');
+      const data={
+        ok:true,sesion:71,existe:true,rut:currentRut,email:email,nombre:datos.nombre,apellido:datos.apellido,
+        estado:saved.estado || (validadoAnteriormente?'MIEMBRO':'NUEVO'),
+        condicion:saved.condicion || (validadoAnteriormente?'MIEMBRO':'NUEVO'),
+        condiciones:Array.isArray(saved.condiciones)?saved.condiciones:[],
+        referencias:Array.isArray(saved.referencias)?saved.referencias:refs,
+        reservaActual:false,
+        validadoAnteriormente:!!validadoAnteriormente,
+        perfil:datos
+      };
+      if(validadoAnteriormente) {
+        setApp(
+          '<div class="title"><span class="prompt">&gt;</span> CHECKIN</div>'+
+          '<div class="status">Tu checkin para la sesión <strong>71</strong> está listo para ser confirmado!</div>'+
+          renderReference(data,'reserve')
+        );
+        bindReference(data,'reserve');
+      } else {
+        setApp(
+          '<div class="title"><span class="prompt">&gt;</span> REQUEST READY</div>'+
+          '<div class="description">Ya casi estás listo. Completa este último paso para enviar tu solicitud.</div>'+
+          renderReference(data,'newRequest')
+        );
+        bindReference(data,'newRequest');
+      }
+    });
+  };
+}
+
+function consult() {
+  const value=(document.getElementById('rutInput').value||'').trim();
+  if(!value) return error('DEBES INGRESAR TU RUT.');
+  loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
+  apiCall('consultarRut',[value],function(err,res) {
+    if(err) return error(err.message);
+    if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
+    currentRut=res.rut;
+    currentEmail=res.email||'';
+    currentData=res;
+    if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
+    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
+    if(res.reservaActual) return renderExisting(res);
+    renderExisting(res);
+  });
+}
+
+home();
+</script>
+</body>
+</html>
