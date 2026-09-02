@@ -165,7 +165,7 @@ function conditions(list){if(!Array.isArray(list)||!list.length)return '';return
 function renderResult(r){
  if(r.resultado==='YA_CHECKIN'){show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN YA REALIZADO</div>'+personCard(r)+'<div class="status warn">ESTE RUT YA TIENE UN INGRESO REGISTRADO PARA LA SESIÓN 071.<br><br>HORA: <strong>'+esc(r.horaCheckin||'—')+'</strong></div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
  if(r.resultado==='PUEDE_VALIDAR'){show('<div class="title"><span class="prompt">&gt;</span> ACCESO DISPONIBLE</div>'+personCard(r)+
- '<div class="card"><div class="grid">'+field('TIPO DE ACCESO',r.tipoAcceso)+field('RESERVA',r.estadoReserva||'CONFIRMADA')+field('REFERENCIA',r.invitadoPor)+field('VALOR EN PUERTA',money(r.valorEstimadoIngreso||r.valorAPagar||0))+'</div></div>'+
+ '<div class="card"><div class="grid">'+field('TIPO DE ACCESO',r.tipoAcceso)+field('RESERVA',r.estadoReserva||'CONFIRMADA')+field('REFERENCIA',r.invitadoPor)+field('VALOR EN PUERTA',money(r.valorEstimadoIngreso!=null?r.valorEstimadoIngreso:0))+'</div></div>'+
  conditions(r.condiciones)+'<div class="status">RESERVA CONFIRMADA.<br>LA ANFITRIONA PUEDE VALIDAR EL ACCESO.</div><button class="primary" id="validateBtn" onclick="validateAccess()">VALIDAR ACCESO</button><button class="secondary" onclick="home()">CANCELAR</button>');return}
  if(r.resultado==='SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> MIEMBRO SIN RESERVA</div>'+personCard(r)+'<div class="status warn">ESTA PERSONA ESTÁ EN LA COMUNIDAD, PERO NO TIENE RESERVA PARA LA SESIÓN 071.</div><div class="sub">EL ASISTENTE DEBE HACER SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
  if(r.resultado==='SOLICITUD_PENDIENTE'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD PENDIENTE</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD PARA LA SESIÓN 071 TODAVÍA ESTÁ PENDIENTE DE APROBACIÓN.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
@@ -187,3 +187,4 @@ window.addEventListener('load',home);
 </script>
 </body>
 </html>
+
