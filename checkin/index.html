@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<title>Miércoles Electrónicos · Check-in</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+<style>
+:root{--bg:#050505;--panel:#090909;--text:#f2f2f2;--muted:#777;--line:#242424;--red:#ff1d38;--green:#00ff66;--amber:#ffd84d}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:monospace}
+body{min-height:100vh}
+.wrap{width:min(760px,94vw);margin:0 auto;padding:22px 0 42px}
+.header{text-align:center}.brand{font-size:21px;font-weight:900}.brand span{color:var(--red)}
+.session{font-size:10px;letter-spacing:1.5px;color:var(--muted);margin-top:7px}
+.line{height:1px;background:var(--line);margin:20px 0}
+.title{font-size:24px;font-weight:900}.prompt{color:var(--red)}
+.sub{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.6}
+.card{margin-top:16px;padding:17px;border:1px solid var(--line);background:var(--panel)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.label{text-transform:uppercase;color:var(--muted);font-size:9px;letter-spacing:1px}
+.value{margin-top:4px;font-size:14px;line-height:1.35;word-break:break-word}
+.status{margin-top:16px;padding:15px;border-left:2px solid var(--green);background:#061008;font-size:13px;line-height:1.55}
+.status.warn{border-left-color:var(--amber);background:#110f05}.status.error{border-left-color:var(--red);background:#100607}.status.neutral{border-left-color:#666;background:#0b0b0b}
+.scan{margin-top:16px;border:1px solid var(--line);padding:8px;background:#000}
+#reader{width:100%}#reader video{width:100%!important}
+button{width:100%;margin-top:12px;padding:15px 16px;border:0;font:inherit;font-weight:900;cursor:pointer}
+.primary{background:var(--red);color:#fff}.primary:disabled{opacity:.45;cursor:not-allowed}
+.secondary{background:#000;color:#fff;border:1px solid #fff}.ghost{background:#111;color:#fff;border:1px solid #333}
+.manual{margin-top:14px}.manualRow{display:flex;gap:9px}
+.manualRow input{min-width:0;flex:1;background:#000;color:#fff;border:1px solid #333;padding:14px;font:inherit}
+.manualRow button{width:auto;min-width:120px;margin-top:0}
+.slot{display:flex;justify-content:space-between;border-top:1px solid #222;padding:10px 0;font-size:12px}.slot:first-child{border-top:0}
+.money{font-weight:900}.bigok{text-align:center;font-size:17px;font-weight:900;color:var(--green);margin-top:18px}
+.footer{text-align:center;color:#444;font-size:9px;line-height:1.7;letter-spacing:1px;margin-top:28px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.manualRow{display:block}.manualRow button{width:100%;margin-top:10px}.title{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+<div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div>
+<div class="session">CHECK-IN · SESSION_071 // UMHO_MOONWALKER</div>
+</div>
+<div class="line"></div>
+<main id="app"></main>
+<div class="footer">ACCESS CONTROL // 2026<br>SESSION_071</div>
+</div>
+<script>
+const CONFIG={
+  BACKEND_URL:'https://script.google.com/macros/s/AKfycbyybZ2k81TKzFPjV4csT2PbRVxPE00IYY709w5HSrhEZfhxgjIRHpEUS2kNw73lfphu/exec',
+  SESSION:71,
+  SESSION_NAME:'UMHO MOONWALKER',
+  PUBLIC_URL:'https://miercoleselectronicos.com/'
+};
+let scanner=null, scanning=false, currentRut='', scanIso='';
+
+function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
+function money(v){const n=Number(v||0);return n===0?'GRATIS':'$'+n.toLocaleString('es-CL')}
+function show(html){document.getElementById('app').innerHTML=html}
+function normalizeRut(v){return String(v||'').replace(/\./g,'').trim().toUpperCase()}
+
+function home(){
+ stopScanner(); currentRut=''; scanIso='';
+ show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN</div>'+
+ '<div class="sub">Escanea el QR del carnet chileno para identificar al asistente.</div>'+
+ '<div class="scan"><div id="reader"></div></div>'+
+ '<div class="sub">La cámara se usa únicamente para leer el QR. Si no puede leerse, puedes ingresar el RUT manualmente.</div>'+
+ '<div class="manual"><div class="manualRow"><input id="manualRut" inputmode="text" autocomplete="off" placeholder="17893792-5"><button class="ghost" onclick="manualSearch()">BUSCAR</button></div></div>');
+ waitForScanner();
+}
+function waitForScanner(){if(document.getElementById('reader')&&window.Html5Qrcode)startScanner();else setTimeout(waitForScanner,150)}
+function startScanner(){
+ if(scanning)return;
+ const target=document.getElementById('reader');if(!target)return;
+ scanner=new Html5Qrcode('reader');
+ scanner.start({facingMode:{ideal:'environment'}},{fps:10,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.72);return{width:s,height:s}}},
+ decoded=>{
+  if(currentRut)return;
+  const rut=extractRut(decoded);
+  if(!rut){stopScanner();show('<div class="title"><span class="prompt">&gt;</span> QR LEÍDO</div><div class="status warn">EL QR FUE LEÍDO, PERO NO SE ENCONTRÓ UN RUT RECONOCIBLE.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+  currentRut=rut;scanIso=new Date().toISOString();stopScanner();consult(rut)
+ },()=>{}).then(()=>{scanning=true}).catch(()=>{
+   scanning=false;
+   const box=document.getElementById('reader');if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA. REVISA EL PERMISO DEL NAVEGADOR.</div>'
+ });
+}
+function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
+function extractRut(payload){
+ const t=String(payload||'').trim();
+ let m=t.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);if(m)return normalizeRut(m[1]);
+ m=t.match(/\b([0-9]{7,8}-[0-9K])\b/i);if(m)return normalizeRut(m[1]);
+ try{const o=JSON.parse(t);for(const k of ['rut','RUT','run','RUN','documento','document']){if(o&&o[k]){const x=String(o[k]).match(/([0-9]{7,8}-?[0-9K])/i);if(x)return normalizeRut(x[1])}}}catch(e){}
+ return '';
+}
+function manualSearch(){const el=document.getElementById('manualRut');const rut=normalizeRut(el?el.value:'');if(!rut)return;currentRut=rut;scanIso=new Date().toISOString();consult(rut)}
+
+function api(fn,args,done){
+ if(!CONFIG.BACKEND_URL||CONFIG.BACKEND_URL.indexOf('PEGAR_AQUI')===0){done(new Error('FALTA CONFIGURAR LA URL DEL BACKEND CHECK-IN.'));return}
+ const cb='meCheckin_'+Date.now()+'_'+Math.floor(Math.random()*9999);
+ const s=document.createElement('script');
+ const url=CONFIG.BACKEND_URL+'?api=1&fn='+encodeURIComponent(fn)+'&args='+encodeURIComponent(JSON.stringify(args||[]))+'&callback='+cb;
+ window[cb]=d=>{try{done(null,d)}finally{delete window[cb];s.remove()}};
+ s.onerror=()=>{delete window[cb];s.remove();done(new Error('NO SE PUDO CONECTAR CON EL BACKEND CHECK-IN.'))};
+ s.src=url;document.body.appendChild(s);
+}
+
+function consult(rut){
+ show('<div class="title"><span class="prompt">&gt;</span> CONSULTANDO</div><div class="status neutral">BUSCANDO EN COMUNIDAD, SOLICITUDES Y RESERVAS...</div>');
+ api('consultarCheckin',[rut],(err,res)=>{if(err)return errorScreen(err.message);if(!res||!res.ok)return errorScreen(res&&res.mensaje?res.mensaje:'NO SE PUDO CONSULTAR EL RUT.');renderResult(res)})
+}
+function field(label,value){return '<div><div class="label">'+esc(label)+'</div><div class="value">'+esc(value==null||value===''?'—':value)+'</div></div>'}
+function personCard(r){return '<div class="card"><div class="grid">'+field('NOMBRE',(r.nombre||'')+' '+(r.apellido||''))+field('EDAD',r.edad!=null?r.edad+' años':'—')+field('SEXO',r.sexo||'—')+field('TELÉFONO',r.telefono||'—')+field('CORREO',r.correo||'—')+field('INVITADO POR',r.invitadoPor||'—')+'</div></div>'}
+function conditions(list){if(!Array.isArray(list)||!list.length)return '';return '<div class="card"><div class="label">HORARIOS Y PRECIO</div>'+list.map(t=>'<div class="slot"><span>'+esc(t.desde)+' — '+esc(t.hasta)+'</span><span class="money">'+money(t.valor)+'</span></div>').join('')+'</div>'}
+
+function renderResult(r){
+ if(r.resultado==='YA_CHECKIN'){show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN YA REALIZADO</div>'+personCard(r)+'<div class="status warn">ESTE RUT YA TIENE UN INGRESO REGISTRADO PARA LA SESIÓN 071.<br><br>HORA: <strong>'+esc(r.horaCheckin||'—')+'</strong></div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='PUEDE_VALIDAR'){show('<div class="title"><span class="prompt">&gt;</span> ACCESO DISPONIBLE</div>'+personCard(r)+
+ '<div class="card"><div class="grid">'+field('TIPO DE ACCESO',r.tipoAcceso)+field('RESERVA',r.estadoReserva||'CONFIRMADA')+field('REFERENCIA',r.invitadoPor)+field('VALOR EN PUERTA',money(r.valorEstimadoIngreso||r.valorAPagar||0))+'</div></div>'+
+ conditions(r.condiciones)+'<div class="status">RESERVA CONFIRMADA.<br>LA ANFITRIONA PUEDE VALIDAR EL ACCESO.</div><button class="primary" id="validateBtn" onclick="validateAccess()">VALIDAR ACCESO</button><button class="secondary" onclick="home()">CANCELAR</button>');return}
+ if(r.resultado==='SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> MIEMBRO SIN RESERVA</div>'+personCard(r)+'<div class="status warn">ESTA PERSONA ESTÁ EN LA COMUNIDAD, PERO NO TIENE RESERVA PARA LA SESIÓN 071.</div><div class="sub">EL ASISTENTE DEBE HACER SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_PENDIENTE'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD PENDIENTE</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD PARA LA SESIÓN 071 TODAVÍA ESTÁ PENDIENTE DE APROBACIÓN.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_NO_APROBADA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD NO APROBADA</div>'+personCard(r)+'<div class="status error">LA SOLICITUD PARA LA SESIÓN 071 NO FUE APROBADA.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_APROBADA_SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD APROBADA</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD FUE APROBADA, PERO TODAVÍA NO EXISTE UNA RESERVA VÁLIDA PARA LA SESIÓN 071.</div><div class="sub">EL ASISTENTE DEBE COMPLETAR SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ show('<div class="title"><span class="prompt">&gt;</span> PERSONA NO REGISTRADA</div><div class="card"><div class="grid">'+field('RUT',r.rut)+field('ESTADO','NO EN COMUNIDAD')+'</div></div><div class="status neutral">NO EXISTE UNA SOLICITUD DE ACCESO PARA LA SESIÓN 071.</div><div class="sub">LA ANFITRIONA NO CREA LA SOLICITUD. LA PERSONA DEBE SOLICITAR ACCESO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>')
+}
+
+function validateAccess(){
+ const b=document.getElementById('validateBtn');if(b){b.disabled=true;b.textContent='VALIDANDO...'}
+ api('registrarCheckIn',[currentRut,scanIso,'ANFITRIONA'],(err,res)=>{
+  if(err){if(b){b.disabled=false;b.textContent='VALIDAR ACCESO'}return errorScreen(err.message)}
+  if(!res||!res.ok){if(b){b.disabled=false;b.textContent='VALIDAR ACCESO'}return errorScreen(res&&res.mensaje?res.mensaje:'NO SE PUDO REGISTRAR EL CHECK-IN.')}
+  show('<div class="title"><span class="prompt">&gt;</span> ACCESO VALIDADO</div><div class="card"><div class="grid">'+field('NOMBRE',(res.nombre||'')+' '+(res.apellido||''))+field('SESIÓN','071 · '+CONFIG.SESSION_NAME)+field('TIPO DE ACCESO',res.tipoAcceso)+field('RUT',res.rut)+'</div></div><div class="bigok">✓ PUEDE INGRESAR</div><div class="status">CHECK-IN REGISTRADO: <strong>'+esc(res.horaCheckin||'—')+'</strong></div><button class="primary" onclick="home()">NUEVO ESCANEO</button>')
+ })
+}
+function errorScreen(msg){show('<div class="title"><span class="prompt">&gt;</span> ERROR</div><div class="status error">'+esc(msg)+'</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>')}
+window.addEventListener('load',home);
+</script>
+</body>
+</html>
