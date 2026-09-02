@@ -90,23 +90,36 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
 
+ // Detector QR optimizado para carnet chileno:
+ // - cámara trasera
+ // - alta resolución para mantener detalle al acercar el carnet
+ // - enfoque continuo solicitado desde el inicio (más estable que reconfigurar la cámara después)
+ // - zona de lectura amplia para tolerar movimiento y distancia
  scanner=new Html5Qrcode('reader',{
    formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
    useBarCodeDetectorIfSupported:false
  });
 
  const scanConfig={
-   fps:8,
-   disableFlip:false,
+   fps:10,
+   disableFlip:true,
+   aspectRatio:16/9,
+   videoConstraints:{
+     facingMode:{ideal:'environment'},
+     width:{ideal:1920},
+     height:{ideal:1080},
+     frameRate:{ideal:30,max:30},
+     advanced:[{focusMode:'continuous'}]
+   },
    qrbox:function(w,h){
-     // QR analysis window: deliberately smaller than the visible carnet guide.
-     const s=Math.max(210,Math.min(330,Math.floor(Math.min(w,h)*0.52)));
-     return {width:s,height:s};
+     // Ventana grande para que el QR siga dentro del análisis incluso al acercar el carnet.
+     const size=Math.floor(Math.min(w,h)*0.72);
+     return {width:size,height:size};
    }
  };
 
  scanner.start(
-   {facingMode:'environment'},
+   {facingMode:{ideal:'environment'}},
    scanConfig,
    function(decodedText){
      if(currentRut)return;
@@ -121,70 +134,62 @@ function startScanner(){
  ).then(function(){
    scanning=true;
    scanMode='QR';
-   setScannerHint('QR · BUSCANDO','Pon el reverso completo del carnet dentro del rectángulo.');
-
-   // IMPORTANT: html5-qrcode reconstruye el contenido de #reader al iniciar.
-   // Por eso la guía visual debe crearse después de scanner.start().
+   setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
    addCardGuide();
 
-   // AUTOFOCUS: pedir enfoque continuo sin fijar una distancia.
-   // Así el iPhone puede reenfocar al acercar o alejar el carnet.
-   enableContinuousAutofocus();
-
-   // Zoom muy moderado para mantener el carnet legible sin exigir acercarlo.
+   // Refuerzo suave del enfoque continuo, solo si el dispositivo lo declara como capacidad.
    try{
-     const caps=scanner.getRunningTrackCameraCapabilities ?
-       scanner.getRunningTrackCameraCapabilities() : null;
-     if(caps && caps.zoom && typeof caps.zoom.max==='number' && caps.zoom.max>1){
-       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.15));
-       scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
+     const caps=scanner.getRunningTrackCapabilities ? scanner.getRunningTrackCapabilities() : null;
+     if(caps && caps.focusMode){
+       const modes=Array.isArray(caps.focusMode)?caps.focusMode:[caps.focusMode];
+       if(modes.indexOf('continuous')>=0){
+         scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
+       }
      }
    }catch(e){}
-
-   clearTimeout(scanTimer);
-   scanTimer=setTimeout(function(){
-     switchToPdf417();
-   },3000);
 
  }).catch(function(err){
-   scanning=false;
-   const detail=err&&err.message?err.message:String(err||'');
-   const box=document.getElementById('reader');
-   if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
- });
-}
-
-function enableContinuousAutofocus(){
- try{
-   if(scanner&&scanner.applyVideoConstraints){
-     scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
-   }
- }catch(e){}
-
- // Reaplicar sobre la pista real de cámara una sola vez, cuando Safari
- // ya haya creado el video. Solo usamos capacidades realmente expuestas.
- setTimeout(function(){
+   // Fallback para navegadores que rechacen constraints avanzadas al iniciar.
+   // Reintentamos una sola vez con la configuración simple de la v7.
    try{
-     const target=document.getElementById('reader');
-     const video=target?target.querySelector('video'):null;
-     const stream=video&&video.srcObject;
-     const tracks=stream&&stream.getVideoTracks?stream.getVideoTracks():[];
-     const track=tracks&&tracks[0];
-     if(!track||!track.applyConstraints)return;
-
-     const caps=track.getCapabilities?track.getCapabilities():{};
-     const advanced={};
-     if(Array.isArray(caps.focusMode)&&caps.focusMode.indexOf('continuous')>=0){
-       advanced.focusMode='continuous';
-     }
-     if(caps.pointsOfInterest){
-       advanced.pointsOfInterest=[{x:0.5,y:0.5}];
-     }
-     if(Object.keys(advanced).length){
-       track.applyConstraints({advanced:[advanced]}).catch(function(){});
-     }
-   }catch(e){}
- },500);
+     scanner=new Html5Qrcode('reader',{
+       formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
+       useBarCodeDetectorIfSupported:false
+     });
+     scanner.start(
+       {facingMode:'environment'},
+       {fps:10,disableFlip:true,qrbox:function(w,h){
+         const size=Math.floor(Math.min(w,h)*0.72);
+         return {width:size,height:size};
+       }},
+       function(decodedText){
+         if(currentRut)return;
+         const rut=extractRut(decodedText);
+         if(!rut)return;
+         currentRut=rut;
+         scanIso=new Date().toISOString();
+         stopScanner();
+         consult(rut);
+       },
+       function(){}
+     ).then(function(){
+       scanning=true;
+       scanMode='QR';
+       setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
+       addCardGuide();
+     }).catch(function(err2){
+       scanning=false;
+       const detail=err2&&err2.message?err2.message:String(err2||err||'');
+       const box=document.getElementById('reader');
+       if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
+     });
+   }catch(e2){
+     scanning=false;
+     const detail=e2&&e2.message?e2.message:String(e2||err||'');
+     const box=document.getElementById('reader');
+     if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
+   }
+ });
 }
 
 function addCardGuide(){
@@ -275,4 +280,3 @@ window.addEventListener('load',home);
 </script>
 </body>
 </html>
-
