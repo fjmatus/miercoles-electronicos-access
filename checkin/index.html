@@ -25,6 +25,17 @@ body{min-height:100vh}
 .status.warn{border-left-color:var(--amber);background:#110f05}.status.error{border-left-color:var(--red);background:#100607}.status.neutral{border-left-color:#666;background:#0b0b0b}
 .scan{margin-top:16px;border:1px solid var(--line);padding:8px;background:#000;min-height:300px}
 #reader{width:100%}#reader video{width:100%!important}
+
+.cardGuideLabel{
+ position:absolute;left:50%;bottom:-28px;transform:translateX(-50%);
+ background:rgba(0,0,0,.82);color:#fff;border:1px solid rgba(255,255,255,.45);
+ padding:7px 12px;font:900 10px monospace;letter-spacing:1px;white-space:nowrap
+}
+.cardGuideCorners{
+ position:absolute;inset:-2px;border-radius:12px;
+ border-top:4px solid #fff;border-bottom:4px solid #fff;
+ opacity:.18
+}
 button{width:100%;margin-top:12px;padding:15px 16px;border:0;font:inherit;font-weight:900;cursor:pointer}
 .primary{background:var(--red);color:#fff}.primary:disabled{opacity:.45;cursor:not-allowed}
 .secondary{background:#000;color:#fff;border:1px solid #fff}.ghost{background:#111;color:#fff;border:1px solid #333}
@@ -79,7 +90,6 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
 
- // Start QR-first. PDF417 becomes fallback after a short period.
  scanner=new Html5Qrcode('reader',{
    formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
    useBarCodeDetectorIfSupported:false
@@ -89,9 +99,8 @@ function startScanner(){
    fps:8,
    disableFlip:false,
    qrbox:function(w,h){
-     // Large enough for the real working distance, but smaller than
-     // the complete image so the decoder spends less work.
-     const s=Math.max(230,Math.min(330,Math.floor(Math.min(w,h)*0.55)));
+     // QR analysis window: deliberately smaller than the visible carnet guide.
+     const s=Math.max(210,Math.min(330,Math.floor(Math.min(w,h)*0.52)));
      return {width:s,height:s};
    }
  };
@@ -112,23 +121,25 @@ function startScanner(){
  ).then(function(){
    scanning=true;
    scanMode='QR';
-   scanModeStartedAt=Date.now();
-   setScannerHint('QR · BUSCANDO', 'Mantén el QR dentro del recuadro y el carnet quieto.');
+   setScannerHint('QR · BUSCANDO','Pon el reverso completo del carnet dentro del rectángulo.');
 
-   // Try continuous autofocus. Do not force focusDistance on Safari/iPhone,
-   // because that can cause the camera to reject otherwise valid constraints.
+   // IMPORTANT: html5-qrcode reconstruye el contenido de #reader al iniciar.
+   // Por eso la guía visual debe crearse después de scanner.start().
+   addCardGuide();
+
+   // Enfoque continuo cuando el navegador lo permite.
    try{
      scanner.applyVideoConstraints({
        advanced:[{focusMode:'continuous'}]
      }).catch(function(){});
    }catch(e){}
 
+   // Zoom muy moderado para mantener el carnet legible sin exigir acercarlo.
    try{
      const caps=scanner.getRunningTrackCameraCapabilities ?
        scanner.getRunningTrackCameraCapabilities() : null;
-
      if(caps && caps.zoom && typeof caps.zoom.max==='number' && caps.zoom.max>1){
-       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.2));
+       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.15));
        scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
      }
    }catch(e){}
@@ -136,7 +147,7 @@ function startScanner(){
    clearTimeout(scanTimer);
    scanTimer=setTimeout(function(){
      switchToPdf417();
-   },2200);
+   },3000);
 
  }).catch(function(err){
    scanning=false;
@@ -146,66 +157,26 @@ function startScanner(){
  });
 }
 
-function switchToPdf417(){
- if(!scanning || currentRut || scanMode==='PDF417')return;
-
- const wasRunning=scanner;
- if(wasRunning)wasRunning.stop().catch(function(){});
-
- scanMode='PDF417';
- setScannerHint('PDF417 · BUSCANDO', 'Si es una cédula anterior, mantén el código dentro del recuadro.');
-
- scanner=new Html5Qrcode('reader',{
-   formatsToSupport:[Html5QrcodeSupportedFormats.PDF_417],
-   useBarCodeDetectorIfSupported:false
- });
-
- const scanConfig={
-   fps:7,
-   disableFlip:false,
-   qrbox:function(w,h){
-     // Horizontal ROI suited to PDF417 on the older cédula.
-     const width=Math.max(260,Math.min(520,Math.floor(w*0.82)));
-     const height=Math.max(90,Math.min(180,Math.floor(h*0.34)));
-     return {width:width,height:height};
-   }
- };
-
- scanner.start(
-   {facingMode:'environment'},
-   scanConfig,
-   function(decodedText){
-     if(currentRut)return;
-     const rut=extractRut(decodedText);
-     if(!rut)return;
-     currentRut=rut;
-     scanIso=new Date().toISOString();
-     stopScanner();
-     consult(rut);
-   },
-   function(){}
- ).then(function(){
-   scanning=true;
-   try{
-     scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
-   }catch(e){}
- }).catch(function(){
-   scanning=false;
-   setScannerHint('ESCÁNER LISTO','Si no detecta el código, mantén el carnet estable y prueba el RUT manual.');
- });
-}
-
-function setScannerHint(title,sub){
+function addCardGuide(){
  const target=document.getElementById('reader');
  if(!target)return;
- let note=document.getElementById('scannerHint');
- if(!note){
-   note=document.createElement('div');
-   note.id='scannerHint';
-   note.style.cssText='position:absolute;left:10px;right:10px;bottom:10px;z-index:8;background:rgba(0,0,0,.72);padding:10px 12px;border:1px solid rgba(255,255,255,.18);font:900 11px monospace;color:#fff;text-align:center;pointer-events:none';
-   target.appendChild(note);
- }
- note.innerHTML='<div style="color:#ff1d38;letter-spacing:1px">'+esc(title)+'</div><div style="margin-top:4px;color:#ddd;font-weight:400">'+esc(sub)+'</div>';
+
+ const old=document.getElementById('cardGuide');
+ if(old)old.remove();
+
+ const guide=document.createElement('div');
+ guide.id='cardGuide';
+ guide.innerHTML=
+   '<div class="cardGuideCorners"></div>'+
+   '<div class="cardGuideLabel">COLOCA EL CARNET AQUÍ</div>';
+
+ guide.style.cssText=
+   'position:absolute;left:6%;right:6%;top:28%;height:44%;'+
+   'border:2px solid rgba(255,255,255,.9);border-radius:12px;'+
+   'z-index:20;pointer-events:none;'+
+   'box-shadow:0 0 0 9999px rgba(0,0,0,.12);';
+
+ target.appendChild(guide);
 }
 
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
