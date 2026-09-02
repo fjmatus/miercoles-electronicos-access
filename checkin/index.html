@@ -75,7 +75,7 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
  scanner=new Html5Qrcode('reader');
- scanner.start({facingMode:{ideal:'environment'}},{fps:10,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.72);return{width:s,height:s}}},
+ scanner.start({facingMode:'environment'},{fps:10,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.72);return{width:s,height:s}}},
  decoded=>{
   if(currentRut)return;
   const rut=extractRut(decoded);
@@ -139,3 +139,4 @@ window.addEventListener('load',home);
 </script>
 </body>
 </html>
+
