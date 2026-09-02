@@ -90,36 +90,31 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
 
- // Detector QR optimizado para carnet chileno:
- // - cámara trasera
- // - alta resolución para mantener detalle al acercar el carnet
- // - enfoque continuo solicitado desde el inicio (más estable que reconfigurar la cámara después)
- // - zona de lectura amplia para tolerar movimiento y distancia
  scanner=new Html5Qrcode('reader',{
    formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
    useBarCodeDetectorIfSupported:false
  });
 
  const scanConfig={
-   fps:10,
-   disableFlip:true,
+   fps:12,
+   disableFlip:false,
    aspectRatio:16/9,
-   videoConstraints:{
-     facingMode:{ideal:'environment'},
-     width:{ideal:1920},
-     height:{ideal:1080},
-     frameRate:{ideal:30,max:30},
-     advanced:[{focusMode:'continuous'}]
-   },
    qrbox:function(w,h){
-     // Ventana grande para que el QR siga dentro del análisis incluso al acercar el carnet.
-     const size=Math.floor(Math.min(w,h)*0.72);
-     return {width:size,height:size};
+     // Zona muy amplia: permite leer el QR incluso cuando el carnet se acerca
+     // y ocupa gran parte de la imagen.
+     const width=Math.floor(w*0.90);
+     const height=Math.floor(h*0.90);
+     return {width:width,height:height};
    }
  };
 
  scanner.start(
-   {facingMode:{ideal:'environment'}},
+   {
+     facingMode:'environment',
+     width:{ideal:1920},
+     height:{ideal:1080},
+     frameRate:{ideal:30,max:30}
+   },
    scanConfig,
    function(decodedText){
      if(currentRut)return;
@@ -137,59 +132,83 @@ function startScanner(){
    setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
    addCardGuide();
 
-   // Refuerzo suave del enfoque continuo, solo si el dispositivo lo declara como capacidad.
-   try{
-     const caps=scanner.getRunningTrackCapabilities ? scanner.getRunningTrackCapabilities() : null;
-     if(caps && caps.focusMode){
-       const modes=Array.isArray(caps.focusMode)?caps.focusMode:[caps.focusMode];
-       if(modes.indexOf('continuous')>=0){
-         scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
-       }
-     }
-   }catch(e){}
+   // Enfoque real sobre la pista de vídeo de Safari.
+   // Usamos las capacidades que el dispositivo expone; nunca forzamos una
+   // restricción que la cámara no soporte.
+   configureCloseFocus();
 
  }).catch(function(err){
-   // Fallback para navegadores que rechacen constraints avanzadas al iniciar.
-   // Reintentamos una sola vez con la configuración simple de la v7.
-   try{
-     scanner=new Html5Qrcode('reader',{
-       formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
-       useBarCodeDetectorIfSupported:false
-     });
-     scanner.start(
-       {facingMode:'environment'},
-       {fps:10,disableFlip:true,qrbox:function(w,h){
-         const size=Math.floor(Math.min(w,h)*0.72);
-         return {width:size,height:size};
-       }},
-       function(decodedText){
-         if(currentRut)return;
-         const rut=extractRut(decodedText);
-         if(!rut)return;
-         currentRut=rut;
-         scanIso=new Date().toISOString();
-         stopScanner();
-         consult(rut);
-       },
-       function(){}
-     ).then(function(){
-       scanning=true;
-       scanMode='QR';
-       setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
-       addCardGuide();
-     }).catch(function(err2){
-       scanning=false;
-       const detail=err2&&err2.message?err2.message:String(err2||err||'');
-       const box=document.getElementById('reader');
-       if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
-     });
-   }catch(e2){
-     scanning=false;
-     const detail=e2&&e2.message?e2.message:String(e2||err||'');
-     const box=document.getElementById('reader');
-     if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
-   }
+   scanning=false;
+   const detail=err&&err.message?err.message:String(err||'');
+   const box=document.getElementById('reader');
+   if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
+}
+
+function getVideoTrack(){
+ try{
+   const video=document.querySelector('#reader video');
+   if(!video||!video.srcObject||!video.srcObject.getVideoTracks)return null;
+   return video.srcObject.getVideoTracks()[0]||null;
+ }catch(e){return null}
+}
+
+function configureCloseFocus(){
+ const track=getVideoTrack();
+ if(!track||!track.applyConstraints)return;
+ let caps={};
+ try{caps=track.getCapabilities?track.getCapabilities():{};}catch(e){}
+ const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
+ const advanced=[];
+
+ // Autofocus continuo: la cámara debe seguir reajustando al acercar el carnet.
+ if(modes.indexOf('continuous')>=0)advanced.push({focusMode:'continuous'});
+
+ // Si el navegador expone distancia de enfoque, preferimos la zona cercana
+ // (~15 cm), pero como 'ideal' para no bloquear el autofocus continuo.
+ if(caps.focusDistance&&typeof caps.focusDistance.min==='number'&&typeof caps.focusDistance.max==='number'){
+   const preferred=Math.max(caps.focusDistance.min,Math.min(caps.focusDistance.max,0.15));
+   advanced.push({focusDistance:{ideal:preferred}});
+ }
+
+ // Centro del carnet como punto de interés cuando el motor lo soporta.
+ advanced.push({pointsOfInterest:[{x:0.5,y:0.5}]});
+
+ if(advanced.length){
+   track.applyConstraints({advanced:advanced}).then(function(){
+     scheduleFocusPulse(track);
+   }).catch(function(){
+     // Segundo intento ultra conservador: solo autofocus continuo.
+     try{
+       if(modes.indexOf('continuous')>=0){
+         track.applyConstraints({advanced:[{focusMode:'continuous'}]}).then(function(){scheduleFocusPulse(track)}).catch(function(){});
+       }
+     }catch(e){}
+   });
+ }else{
+   scheduleFocusPulse(track);
+ }
+}
+
+function scheduleFocusPulse(track){
+ // Algunos dispositivos necesitan un pequeño disparo de autofocus para salir
+ // de un foco lejano después de poner el carnet cerca. Lo hacemos cada 2.2 s,
+ // sin cambiar resolución, zoom ni el flujo del scanner.
+ if(window.__meFocusTimer)clearInterval(window.__meFocusTimer);
+ window.__meFocusTimer=setInterval(function(){
+   if(!scanning||currentRut||!track||track.readyState==='ended')return;
+   try{
+     const caps=track.getCapabilities?track.getCapabilities():{};
+     const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
+     if(modes.indexOf('single-shot')>=0&&modes.indexOf('continuous')>=0){
+       track.applyConstraints({advanced:[{focusMode:'single-shot'}]}).then(function(){
+         setTimeout(function(){
+           try{track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});}catch(e){}
+         },140);
+       }).catch(function(){});
+     }
+   }catch(e){}
+ },2200);
 }
 
 function addCardGuide(){
@@ -215,8 +234,7 @@ function addCardGuide(){
 }
 
 function setScannerHint(title,sub){
- const target=document.getElementById('reader');
- if(!target)return;
+ const target=document.getElementById('reader');if(!target)return;
  let hint=document.getElementById('scannerHint');
  if(!hint){
    hint=document.createElement('div');
@@ -227,7 +245,7 @@ function setScannerHint(title,sub){
  hint.innerHTML='<div style="font-size:16px;font-weight:700;letter-spacing:1px;">'+esc(title)+'</div><div style="font-size:12px;margin-top:5px;">'+esc(sub)+'</div>';
 }
 
-function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
+function stopScanner(){if(window.__meFocusTimer)clearInterval(window.__meFocusTimer);window.__meFocusTimer=null;if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
  const t=String(payload||'').trim();
  let m=t.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);if(m)return normalizeRut(m[1]);
