@@ -71,27 +71,35 @@ function home(){
  waitForScanner();
 }
 function waitForScanner(){if(document.getElementById('reader')&&window.Html5Qrcode)startScanner();else setTimeout(waitForScanner,150)}
+let scanMode='QR';
+let scanModeStartedAt=0;
+let scanTimer=null;
+
 function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
 
+ // Start QR-first. PDF417 becomes fallback after a short period.
  scanner=new Html5Qrcode('reader',{
-   formatsToSupport:[
-     Html5QrcodeSupportedFormats.QR_CODE,
-     Html5QrcodeSupportedFormats.PDF_417
-   ],
+   formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
    useBarCodeDetectorIfSupported:false
  });
 
  const scanConfig={
-   fps:5,
-   disableFlip:false
+   fps:8,
+   disableFlip:false,
+   qrbox:function(w,h){
+     // Large enough for the real working distance, but smaller than
+     // the complete image so the decoder spends less work.
+     const s=Math.max(230,Math.min(330,Math.floor(Math.min(w,h)*0.55)));
+     return {width:s,height:s};
+   }
  };
 
  scanner.start(
    {facingMode:'environment'},
    scanConfig,
-   function(decodedText,decodedResult){
+   function(decodedText){
      if(currentRut)return;
      const rut=extractRut(decodedText);
      if(!rut)return;
@@ -103,63 +111,101 @@ function startScanner(){
    function(){}
  ).then(function(){
    scanning=true;
+   scanMode='QR';
+   scanModeStartedAt=Date.now();
+   setScannerHint('QR · BUSCANDO', 'Mantén el QR dentro del recuadro y el carnet quieto.');
 
-   // Una vez abierta la cámara, pedimos al navegador:
-   // - alta resolución cuando esté disponible
-   // - autofocus continuo
-   // - distancia de enfoque cercana, ideal ~18 cm
-   // - pequeño zoom solo si el dispositivo lo soporta
+   // Try continuous autofocus. Do not force focusDistance on Safari/iPhone,
+   // because that can cause the camera to reject otherwise valid constraints.
+   try{
+     scanner.applyVideoConstraints({
+       advanced:[{focusMode:'continuous'}]
+     }).catch(function(){});
+   }catch(e){}
+
    try{
      const caps=scanner.getRunningTrackCameraCapabilities ?
        scanner.getRunningTrackCameraCapabilities() : null;
 
-     const advanced=[];
-     if(caps && caps.focusMode){
-       advanced.push({focusMode:'continuous'});
-     }
-     if(caps && caps.focusDistance && typeof caps.focusDistance.min==='number'){
-       // La distancia está expresada en metros. Elegimos una distancia
-       // cercana al uso real del carnet, pero respetando el rango del iPhone.
-       const min=caps.focusDistance.min;
-       const max=typeof caps.focusDistance.max==='number' ? caps.focusDistance.max : 10;
-       const ideal=Math.max(min,Math.min(max,0.18));
-       advanced.push({focusDistance:{ideal:ideal}});
-     }
-
-     const constraints={
-       width:{ideal:3840},
-       height:{ideal:2160},
-       frameRate:{ideal:30,max:30}
-     };
-
-     if(advanced.length)constraints.advanced=advanced;
-
-     scanner.applyVideoConstraints(constraints).catch(function(){
-       // Algunos navegadores no exponen focusDistance/focusMode.
-       // Si falla, dejamos funcionar el autofocus nativo.
-       try{
-         scanner.applyVideoConstraints({
-           advanced:[{focusMode:'continuous'}]
-         }).catch(function(){});
-       }catch(e){}
-     });
-
-     // El QR de la cédula es pequeño a la distancia de trabajo.
-     // Zoom moderado si el hardware lo permite, evitando forzarlo en equipos
-     // que no lo soporten.
      if(caps && caps.zoom && typeof caps.zoom.max==='number' && caps.zoom.max>1){
-       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.25));
-       try{
-         scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
-       }catch(e){}
+       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.2));
+       scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
      }
    }catch(e){}
+
+   clearTimeout(scanTimer);
+   scanTimer=setTimeout(function(){
+     switchToPdf417();
+   },2200);
+
  }).catch(function(err){
    scanning=false;
    const detail=err&&err.message?err.message:String(err||'');
    const box=document.getElementById('reader');
    if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
+}
+
+function switchToPdf417(){
+ if(!scanning || currentRut || scanMode==='PDF417')return;
+
+ const wasRunning=scanner;
+ if(wasRunning)wasRunning.stop().catch(function(){});
+
+ scanMode='PDF417';
+ setScannerHint('PDF417 · BUSCANDO', 'Si es una cédula anterior, mantén el código dentro del recuadro.');
+
+ scanner=new Html5Qrcode('reader',{
+   formatsToSupport:[Html5QrcodeSupportedFormats.PDF_417],
+   useBarCodeDetectorIfSupported:false
+ });
+
+ const scanConfig={
+   fps:7,
+   disableFlip:false,
+   qrbox:function(w,h){
+     // Horizontal ROI suited to PDF417 on the older cédula.
+     const width=Math.max(260,Math.min(520,Math.floor(w*0.82)));
+     const height=Math.max(90,Math.min(180,Math.floor(h*0.34)));
+     return {width:width,height:height};
+   }
+ };
+
+ scanner.start(
+   {facingMode:'environment'},
+   scanConfig,
+   function(decodedText){
+     if(currentRut)return;
+     const rut=extractRut(decodedText);
+     if(!rut)return;
+     currentRut=rut;
+     scanIso=new Date().toISOString();
+     stopScanner();
+     consult(rut);
+   },
+   function(){}
+ ).then(function(){
+   scanning=true;
+   try{
+     scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
+   }catch(e){}
+ }).catch(function(){
+   scanning=false;
+   setScannerHint('ESCÁNER LISTO','Si no detecta el código, mantén el carnet estable y prueba el RUT manual.');
+ });
+}
+
+function setScannerHint(title,sub){
+ const target=document.getElementById('reader');
+ if(!target)return;
+ let note=document.getElementById('scannerHint');
+ if(!note){
+   note=document.createElement('div');
+   note.id='scannerHint';
+   note.style.cssText='position:absolute;left:10px;right:10px;bottom:10px;z-index:8;background:rgba(0,0,0,.72);padding:10px 12px;border:1px solid rgba(255,255,255,.18);font:900 11px monospace;color:#fff;text-align:center;pointer-events:none';
+   target.appendChild(note);
+ }
+ note.innerHTML='<div style="color:#ff1d38;letter-spacing:1px">'+esc(title)+'</div><div style="margin-top:4px;color:#ddd;font-weight:400">'+esc(sub)+'</div>';
 }
 
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
