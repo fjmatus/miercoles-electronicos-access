@@ -23,8 +23,8 @@ body{min-height:100vh}
 .value{margin-top:4px;font-size:14px;line-height:1.35;word-break:break-word}
 .status{margin-top:16px;padding:15px;border-left:2px solid var(--green);background:#061008;font-size:13px;line-height:1.55}
 .status.warn{border-left-color:var(--amber);background:#110f05}.status.error{border-left-color:var(--red);background:#100607}.status.neutral{border-left-color:#666;background:#0b0b0b}
-.scan{margin-top:16px;border:1px solid var(--line);padding:8px;background:#000}
-#reader{width:100%;position:relative}#reader video{width:100%!important;display:block}.scanGuide{position:absolute;left:18%;right:18%;top:24%;bottom:24%;border:2px solid rgba(255,255,255,.8);border-radius:8px;pointer-events:none;z-index:5;box-shadow:0 0 0 9999px rgba(0,0,0,.08)}
+.scan{margin-top:16px;border:1px solid var(--line);padding:8px;background:#000;min-height:300px}
+#reader{width:100%}#reader video{width:100%!important}
 button{width:100%;margin-top:12px;padding:15px 16px;border:0;font:inherit;font-weight:900;cursor:pointer}
 .primary{background:var(--red);color:#fff}.primary:disabled{opacity:.45;cursor:not-allowed}
 .secondary{background:#000;color:#fff;border:1px solid #fff}.ghost{background:#111;color:#fff;border:1px solid #333}
@@ -65,7 +65,7 @@ function home(){
  stopScanner(); currentRut=''; scanIso='';
  show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN</div>'+
  '<div class="sub">Escanea el QR del carnet chileno para identificar al asistente.</div>'+
- '<div class="scan"><div id="reader"><div class="scanGuide" aria-hidden="true"></div></div></div>'+
+ '<div class="scan"><div id="reader"></div></div>'+
  '<div class="sub">La cámara se usa únicamente para leer el QR. Si no puede leerse, puedes ingresar el RUT manualmente.</div>'+
  '<div class="manual"><div class="manualRow"><input id="manualRut" inputmode="text" autocomplete="off" placeholder="17893792-5"><button class="ghost" onclick="manualSearch()">BUSCAR</button></div></div>');
  waitForScanner();
@@ -75,9 +75,6 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
 
- // QR + PDF417: ambos formatos son compatibles con html5-qrcode.
- // Desactivamos BarcodeDetector para forzar el decoder ZXing, que soporta
- // PDF417 además de QR.
  scanner=new Html5Qrcode('reader',{
    formatsToSupport:[
      Html5QrcodeSupportedFormats.QR_CODE,
@@ -87,7 +84,7 @@ function startScanner(){
  });
 
  const scanConfig={
-   fps:8,
+   fps:6,
    disableFlip:false,
    videoConstraints:{
      facingMode:{ideal:'environment'},
@@ -96,10 +93,6 @@ function startScanner(){
    }
  };
 
- // IMPORTANTE:
- // No usamos qrbox. El decoder recibe el cuadro completo de cámara,
- // porque a la distancia real del carnet el QR/PDF417 puede quedar
- // en distintas posiciones dentro del reverso.
  scanner.start(
    {facingMode:'environment'},
    scanConfig,
@@ -107,13 +100,7 @@ function startScanner(){
      if(currentRut)return;
      const rut=extractRut(decodedText);
      if(!rut){
-       stopScanner();
-       show(
-         '<div class="title"><span class="prompt">&gt;</span> CÓDIGO LEÍDO</div>'+
-         '<div class="status warn">SE LEYÓ UN CÓDIGO, PERO NO SE ENCONTRÓ UN RUN/RUT RECONOCIBLE.</div>'+
-         '<div class="sub">Puedes volver a enfocar el reverso del carnet o ingresar el RUT manualmente.</div>'+
-         '<button class="secondary" onclick="home()">NUEVO ESCANEO</button>'
-       );
+       // Código encontrado, pero no trae un RUN/RUT reconocible.
        return;
      }
      currentRut=rut;
@@ -124,13 +111,30 @@ function startScanner(){
    function(){ }
  ).then(function(){
    scanning=true;
+
+   // Forzar enfoque continuo cuando el dispositivo/navegador lo soporta.
+   try{
+     scanner.applyVideoConstraints({
+       focusMode:'continuous'
+     }).catch(function(){});
+   }catch(e){}
+
+   // Usar un pequeño zoom si la cámara lo soporta. No se fuerza un valor
+   // concreto: se toma uno moderado dentro del rango disponible.
+   try{
+     const cap=scanner.getRunningTrackCapabilities();
+     if(cap && cap.zoom && typeof cap.zoom.max==='number' && cap.zoom.max>1){
+       const z=Math.min(cap.zoom.max, Math.max(cap.zoom.min || 1, 1.5));
+       scanner.applyVideoConstraints({
+         advanced:[{zoom:z}]
+       }).catch(function(){});
+     }
+   }catch(e){}
  }).catch(function(err){
    scanning=false;
    const detail=err&&err.message?err.message:String(err||'');
    const box=document.getElementById('reader');
-   if(box)box.innerHTML=
-     '<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>'+
-     'ERROR TÉCNICO: '+esc(detail)+'</div>';
+   if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
 }
 
