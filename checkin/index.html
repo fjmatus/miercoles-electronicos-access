@@ -100,21 +100,15 @@ function startScanner(){
    disableFlip:false,
    aspectRatio:16/9,
    qrbox:function(w,h){
-     // Zona muy amplia: permite leer el QR incluso cuando el carnet se acerca
-     // y ocupa gran parte de la imagen.
-     const width=Math.floor(w*0.90);
-     const height=Math.floor(h*0.90);
-     return {width:width,height:height};
+     const s=Math.floor(Math.min(w,h)*0.72);
+     return {width:s,height:s};
    }
  };
 
+ // IMPORTANTE: html5-qrcode exige que este objeto tenga EXACTAMENTE una propiedad.
+ // Por eso NO pasamos width/height/frameRate/focusMode aquí.
  scanner.start(
-   {
-     facingMode:'environment',
-     width:{ideal:1920},
-     height:{ideal:1080},
-     frameRate:{ideal:30,max:30}
-   },
+   {facingMode:'environment'},
    scanConfig,
    function(decodedText){
      if(currentRut)return;
@@ -131,12 +125,7 @@ function startScanner(){
    scanMode='QR';
    setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
    addCardGuide();
-
-   // Enfoque real sobre la pista de vídeo de Safari.
-   // Usamos las capacidades que el dispositivo expone; nunca forzamos una
-   // restricción que la cámara no soporte.
    configureCloseFocus();
-
  }).catch(function(err){
    scanning=false;
    const detail=err&&err.message?err.message:String(err||'');
@@ -158,57 +147,32 @@ function configureCloseFocus(){
  if(!track||!track.applyConstraints)return;
  let caps={};
  try{caps=track.getCapabilities?track.getCapabilities():{};}catch(e){}
- const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
- const advanced=[];
 
- // Autofocus continuo: la cámara debe seguir reajustando al acercar el carnet.
- if(modes.indexOf('continuous')>=0)advanced.push({focusMode:'continuous'});
+ // 1) Pedimos más resolución solamente si la cámara la ofrece.
+ try{
+   const adv={};
+   if(caps.width&&typeof caps.width.max==='number')adv.width={ideal:Math.min(1920,caps.width.max)};
+   if(caps.height&&typeof caps.height.max==='number')adv.height={ideal:Math.min(1080,caps.height.max)};
+   if(caps.frameRate&&typeof caps.frameRate.max==='number')adv.frameRate={ideal:Math.min(30,caps.frameRate.max)};
+   if(Object.keys(adv).length)track.applyConstraints(adv).catch(function(){});
+ }catch(e){}
 
- // Si el navegador expone distancia de enfoque, preferimos la zona cercana
- // (~15 cm), pero como 'ideal' para no bloquear el autofocus continuo.
- if(caps.focusDistance&&typeof caps.focusDistance.min==='number'&&typeof caps.focusDistance.max==='number'){
-   const preferred=Math.max(caps.focusDistance.min,Math.min(caps.focusDistance.max,0.15));
-   advanced.push({focusDistance:{ideal:preferred}});
- }
+ // 2) Autofocus continuo: el objetivo es que al acercar el carnet vuelva a enfocar.
+ try{
+   const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
+   if(modes.indexOf('continuous')>=0){
+     track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
+   }
+ }catch(e){}
 
- // Centro del carnet como punto de interés cuando el motor lo soporta.
- advanced.push({pointsOfInterest:[{x:0.5,y:0.5}]});
-
- if(advanced.length){
-   track.applyConstraints({advanced:advanced}).then(function(){
-     scheduleFocusPulse(track);
-   }).catch(function(){
-     // Segundo intento ultra conservador: solo autofocus continuo.
-     try{
-       if(modes.indexOf('continuous')>=0){
-         track.applyConstraints({advanced:[{focusMode:'continuous'}]}).then(function(){scheduleFocusPulse(track)}).catch(function(){});
-       }
-     }catch(e){}
-   });
- }else{
-   scheduleFocusPulse(track);
- }
-}
-
-function scheduleFocusPulse(track){
- // Algunos dispositivos necesitan un pequeño disparo de autofocus para salir
- // de un foco lejano después de poner el carnet cerca. Lo hacemos cada 2.2 s,
- // sin cambiar resolución, zoom ni el flujo del scanner.
- if(window.__meFocusTimer)clearInterval(window.__meFocusTimer);
- window.__meFocusTimer=setInterval(function(){
-   if(!scanning||currentRut||!track||track.readyState==='ended')return;
-   try{
-     const caps=track.getCapabilities?track.getCapabilities():{};
-     const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
-     if(modes.indexOf('single-shot')>=0&&modes.indexOf('continuous')>=0){
-       track.applyConstraints({advanced:[{focusMode:'single-shot'}]}).then(function(){
-         setTimeout(function(){
-           try{track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});}catch(e){}
-         },140);
-       }).catch(function(){});
-     }
-   }catch(e){}
- },2200);
+ // 3) Si el iPhone expone focusDistance, usamos SOLO una preferencia ideal de corto alcance.
+ // Nunca se fija el foco y nunca se aplica un valor incompatible fuera del rango.
+ try{
+   if(caps.focusDistance&&typeof caps.focusDistance.min==='number'&&typeof caps.focusDistance.max==='number'){
+     const fd=Math.max(caps.focusDistance.min,Math.min(caps.focusDistance.max,0.15));
+     track.applyConstraints({advanced:[{focusDistance:{ideal:fd}}]}).catch(function(){});
+   }
+ }catch(e){}
 }
 
 function addCardGuide(){
