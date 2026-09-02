@@ -96,17 +96,16 @@ function startScanner(){
  });
 
  const scanConfig={
-   fps:12,
+   fps:8,
    disableFlip:false,
-   aspectRatio:16/9,
+   focusMode:'continuous',
    qrbox:function(w,h){
-     const s=Math.floor(Math.min(w,h)*0.72);
+     // QR analysis window: deliberately smaller than the visible carnet guide.
+     const s=Math.max(210,Math.min(330,Math.floor(Math.min(w,h)*0.52)));
      return {width:s,height:s};
    }
  };
 
- // IMPORTANTE: html5-qrcode exige que este objeto tenga EXACTAMENTE una propiedad.
- // Por eso NO pasamos width/height/frameRate/focusMode aquí.
  scanner.start(
    {facingMode:'environment'},
    scanConfig,
@@ -123,56 +122,40 @@ function startScanner(){
  ).then(function(){
    scanning=true;
    scanMode='QR';
-   setScannerHint('QR · BUSCANDO','Acerca el carnet lentamente hasta que quede nítido.');
+   setScannerHint('QR · BUSCANDO','Pon el reverso completo del carnet dentro del rectángulo.');
+
+   // IMPORTANT: html5-qrcode reconstruye el contenido de #reader al iniciar.
+   // Por eso la guía visual debe crearse después de scanner.start().
    addCardGuide();
-   configureCloseFocus();
+
+   // Enfoque continuo cuando el navegador lo permite.
+   try{
+     scanner.applyVideoConstraints({
+       advanced:[{focusMode:'continuous'}]
+     }).catch(function(){});
+   }catch(e){}
+
+   // Zoom muy moderado para mantener el carnet legible sin exigir acercarlo.
+   try{
+     const caps=scanner.getRunningTrackCameraCapabilities ?
+       scanner.getRunningTrackCameraCapabilities() : null;
+     if(caps && caps.zoom && typeof caps.zoom.max==='number' && caps.zoom.max>1){
+       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.15));
+       scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
+     }
+   }catch(e){}
+
+   clearTimeout(scanTimer);
+   scanTimer=setTimeout(function(){
+     switchToPdf417();
+   },3000);
+
  }).catch(function(err){
    scanning=false;
    const detail=err&&err.message?err.message:String(err||'');
    const box=document.getElementById('reader');
    if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
-}
-
-function getVideoTrack(){
- try{
-   const video=document.querySelector('#reader video');
-   if(!video||!video.srcObject||!video.srcObject.getVideoTracks)return null;
-   return video.srcObject.getVideoTracks()[0]||null;
- }catch(e){return null}
-}
-
-function configureCloseFocus(){
- const track=getVideoTrack();
- if(!track||!track.applyConstraints)return;
- let caps={};
- try{caps=track.getCapabilities?track.getCapabilities():{};}catch(e){}
-
- // 1) Pedimos más resolución solamente si la cámara la ofrece.
- try{
-   const adv={};
-   if(caps.width&&typeof caps.width.max==='number')adv.width={ideal:Math.min(1920,caps.width.max)};
-   if(caps.height&&typeof caps.height.max==='number')adv.height={ideal:Math.min(1080,caps.height.max)};
-   if(caps.frameRate&&typeof caps.frameRate.max==='number')adv.frameRate={ideal:Math.min(30,caps.frameRate.max)};
-   if(Object.keys(adv).length)track.applyConstraints(adv).catch(function(){});
- }catch(e){}
-
- // 2) Autofocus continuo: el objetivo es que al acercar el carnet vuelva a enfocar.
- try{
-   const modes=Array.isArray(caps.focusMode)?caps.focusMode:[];
-   if(modes.indexOf('continuous')>=0){
-     track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
-   }
- }catch(e){}
-
- // 3) Si el iPhone expone focusDistance, usamos SOLO una preferencia ideal de corto alcance.
- // Nunca se fija el foco y nunca se aplica un valor incompatible fuera del rango.
- try{
-   if(caps.focusDistance&&typeof caps.focusDistance.min==='number'&&typeof caps.focusDistance.max==='number'){
-     const fd=Math.max(caps.focusDistance.min,Math.min(caps.focusDistance.max,0.15));
-     track.applyConstraints({advanced:[{focusDistance:{ideal:fd}}]}).catch(function(){});
-   }
- }catch(e){}
 }
 
 function addCardGuide(){
@@ -197,19 +180,7 @@ function addCardGuide(){
  target.appendChild(guide);
 }
 
-function setScannerHint(title,sub){
- const target=document.getElementById('reader');if(!target)return;
- let hint=document.getElementById('scannerHint');
- if(!hint){
-   hint=document.createElement('div');
-   hint.id='scannerHint';
-   hint.style.cssText='position:absolute;left:8%;right:8%;bottom:6%;z-index:25;pointer-events:none;text-align:center;font-family:monospace;';
-   target.appendChild(hint);
- }
- hint.innerHTML='<div style="font-size:16px;font-weight:700;letter-spacing:1px;">'+esc(title)+'</div><div style="font-size:12px;margin-top:5px;">'+esc(sub)+'</div>';
-}
-
-function stopScanner(){if(window.__meFocusTimer)clearInterval(window.__meFocusTimer);window.__meFocusTimer=null;if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
+function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
  const t=String(payload||'').trim();
  let m=t.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);if(m)return normalizeRut(m[1]);
