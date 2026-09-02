@@ -64,8 +64,9 @@ function normalizeRut(v){return String(v||'').replace(/\./g,'').trim().toUpperCa
 function home(){
  stopScanner(); currentRut=''; scanIso='';
  show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN</div>'+
- '<div class="sub">Escanea el QR del carnet chileno para identificar al asistente.</div>'+
+ '<div class="sub">Centra el QR del carnet dentro del recuadro. Mantén el carnet a la distancia en que el QR se vea nítido.</div>'+
  '<div class="scan"><div id="reader"></div></div>'+
+ '<div class="sub">CENTRA SOLO EL QR EN EL RECUADRO. No necesitas acercar más el carnet si el QR ya se ve nítido.</div>'+
  '<div class="sub">La cámara se usa únicamente para leer el QR. Si no puede leerse, puedes ingresar el RUT manualmente.</div>'+
  '<div class="manual"><div class="manualRow"><input id="manualRut" inputmode="text" autocomplete="off" placeholder="17893792-5"><button class="ghost" onclick="manualSearch()">BUSCAR</button></div></div>');
  waitForScanner();
@@ -75,7 +76,22 @@ function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
  scanner=new Html5Qrcode('reader');
- scanner.start({facingMode:'environment'},{fps:10,qrbox:(w,h)=>{const s=Math.floor(Math.min(w,h)*.72);return{width:s,height:s}}},
+ const scanConfig={
+   fps:10,
+   formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
+   qrbox:function(w,h){
+     const s=Math.max(170,Math.min(210,Math.floor(Math.min(w,h)*0.46)));
+     return {width:s,height:s};
+   },
+   aspectRatio:1.0
+ };
+ const cameraConfig={
+   facingMode:{exact:'environment'},
+   width:{ideal:1920},
+   height:{ideal:1080},
+   advanced:[{focusMode:'continuous'},{zoom:1.35}]
+ };
+ scanner.start(cameraConfig,scanConfig,
  decoded=>{
   if(currentRut)return;
   const rut=extractRut(decoded);
@@ -88,44 +104,12 @@ function startScanner(){
 }
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
- const raw=String(payload||'').trim();
- if(!raw)return '';
-
- // QR de la cédula chilena: URL del Registro Civil con RUN como parámetro.
- // Ejemplo: ...docstatus?RUN=12345678-9&type=CEDULA...
- try{
-   const decoded=decodeURIComponent(raw);
-   const u=new URL(decoded);
-   const run=u.searchParams.get('RUN') || u.searchParams.get('run') ||
-             u.searchParams.get('RUT') || u.searchParams.get('rut');
-   if(run){
-     const m=String(run).match(/([0-9]{7,8}-?[0-9K])/i);
-     if(m)return normalizeRut(m[1]);
-   }
- }catch(e){}
-
- // Texto plano: RUN=..., RUT=..., etc.
- let m=raw.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);
- if(m)return normalizeRut(m[1]);
-
- // RUT directo dentro del payload.
- m=raw.match(/\b([0-9]{7,8}-[0-9K])\b/i);
- if(m)return normalizeRut(m[1]);
-
- // JSON, por si otro lector entrega ese formato.
- try{
-   const o=JSON.parse(raw);
-   for(const k of ['rut','RUT','run','RUN','documento','document']){
-     if(o&&o[k]){
-       const x=String(o[k]).match(/([0-9]{7,8}-?[0-9K])/i);
-       if(x)return normalizeRut(x[1]);
-     }
-   }
- }catch(e){}
-
+ const t=String(payload||'').trim();
+ let m=t.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);if(m)return normalizeRut(m[1]);
+ m=t.match(/\b([0-9]{7,8}-[0-9K])\b/i);if(m)return normalizeRut(m[1]);
+ try{const o=JSON.parse(t);for(const k of ['rut','RUT','run','RUN','documento','document']){if(o&&o[k]){const x=String(o[k]).match(/([0-9]{7,8}-?[0-9K])/i);if(x)return normalizeRut(x[1])}}}catch(e){}
  return '';
 }
-
 function manualSearch(){const el=document.getElementById('manualRut');const rut=normalizeRut(el?el.value:'');if(!rut)return;currentRut=rut;scanIso=new Date().toISOString();consult(rut)}
 
 function api(fn,args,done){
@@ -171,4 +155,3 @@ window.addEventListener('load',home);
 </script>
 </body>
 </html>
-
