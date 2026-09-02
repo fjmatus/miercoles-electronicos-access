@@ -81,23 +81,51 @@ function startScanner(){
   const rut=extractRut(decoded);
   if(!rut){stopScanner();show('<div class="title"><span class="prompt">&gt;</span> QR LEÍDO</div><div class="status warn">EL QR FUE LEÍDO, PERO NO SE ENCONTRÓ UN RUT RECONOCIBLE.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
   currentRut=rut;scanIso=new Date().toISOString();stopScanner();consult(rut)
- },()=>{}).then(()=>{scanning=true}).catch((err)=>{
+ },()=>{}).then(()=>{scanning=true}).catch(()=>{
    scanning=false;
-   const detail = err && err.message ? err.message : String(err || '');
-   const box=document.getElementById('reader');
-   if(box) box.innerHTML =
-     '<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>'+
-     'ERROR TÉCNICO: '+esc(detail)+'</div>';
+   const box=document.getElementById('reader');if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA. REVISA EL PERMISO DEL NAVEGADOR.</div>'
  });
 }
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
- const t=String(payload||'').trim();
- let m=t.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);if(m)return normalizeRut(m[1]);
- m=t.match(/\b([0-9]{7,8}-[0-9K])\b/i);if(m)return normalizeRut(m[1]);
- try{const o=JSON.parse(t);for(const k of ['rut','RUT','run','RUN','documento','document']){if(o&&o[k]){const x=String(o[k]).match(/([0-9]{7,8}-?[0-9K])/i);if(x)return normalizeRut(x[1])}}}catch(e){}
+ const raw=String(payload||'').trim();
+ if(!raw)return '';
+
+ // QR de la cédula chilena: URL del Registro Civil con RUN como parámetro.
+ // Ejemplo: ...docstatus?RUN=12345678-9&type=CEDULA...
+ try{
+   const decoded=decodeURIComponent(raw);
+   const u=new URL(decoded);
+   const run=u.searchParams.get('RUN') || u.searchParams.get('run') ||
+             u.searchParams.get('RUT') || u.searchParams.get('rut');
+   if(run){
+     const m=String(run).match(/([0-9]{7,8}-?[0-9K])/i);
+     if(m)return normalizeRut(m[1]);
+   }
+ }catch(e){}
+
+ // Texto plano: RUN=..., RUT=..., etc.
+ let m=raw.match(/(?:RUT|RUN|DOCUMENTO)\s*[:=]\s*([0-9]{7,8}-?[0-9K])/i);
+ if(m)return normalizeRut(m[1]);
+
+ // RUT directo dentro del payload.
+ m=raw.match(/\b([0-9]{7,8}-[0-9K])\b/i);
+ if(m)return normalizeRut(m[1]);
+
+ // JSON, por si otro lector entrega ese formato.
+ try{
+   const o=JSON.parse(raw);
+   for(const k of ['rut','RUT','run','RUN','documento','document']){
+     if(o&&o[k]){
+       const x=String(o[k]).match(/([0-9]{7,8}-?[0-9K])/i);
+       if(x)return normalizeRut(x[1]);
+     }
+   }
+ }catch(e){}
+
  return '';
 }
+
 function manualSearch(){const el=document.getElementById('manualRut');const rut=normalizeRut(el?el.value:'');if(!rut)return;currentRut=rut;scanIso=new Date().toISOString();consult(rut)}
 
 function api(fn,args,done){
