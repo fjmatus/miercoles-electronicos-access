@@ -179,19 +179,6 @@ function addCardGuide(){
  target.appendChild(guide);
 }
 
-function setScannerHint(title,sub){
- const target=document.getElementById('reader');
- if(!target)return;
- let hint=document.getElementById('scannerHint');
- if(!hint){
-  hint=document.createElement('div');
-  hint.id='scannerHint';
-  hint.style.cssText='position:absolute;left:8%;right:8%;bottom:6%;z-index:25;pointer-events:none;text-align:center;font-family:monospace;';
-  target.appendChild(hint);
- }
- hint.innerHTML='<div style="font-size:16px;font-weight:700;letter-spacing:1px;">'+esc(title)+'</div><div style="font-size:12px;margin-top:5px;">'+esc(sub)+'</div>';
-}
-
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
  const t=String(payload||'').trim();
