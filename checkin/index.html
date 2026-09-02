@@ -24,7 +24,7 @@ body{min-height:100vh}
 .status{margin-top:16px;padding:15px;border-left:2px solid var(--green);background:#061008;font-size:13px;line-height:1.55}
 .status.warn{border-left-color:var(--amber);background:#110f05}.status.error{border-left-color:var(--red);background:#100607}.status.neutral{border-left-color:#666;background:#0b0b0b}
 .scan{margin-top:16px;border:1px solid var(--line);padding:8px;background:#000}
-#reader{width:100%}#reader video{width:100%!important}
+#reader{width:100%;position:relative}#reader video{width:100%!important;display:block}.scanGuide{position:absolute;left:18%;right:18%;top:24%;bottom:24%;border:2px solid rgba(255,255,255,.8);border-radius:8px;pointer-events:none;z-index:5;box-shadow:0 0 0 9999px rgba(0,0,0,.08)}
 button{width:100%;margin-top:12px;padding:15px 16px;border:0;font:inherit;font-weight:900;cursor:pointer}
 .primary{background:var(--red);color:#fff}.primary:disabled{opacity:.45;cursor:not-allowed}
 .secondary{background:#000;color:#fff;border:1px solid #fff}.ghost{background:#111;color:#fff;border:1px solid #333}
@@ -64,9 +64,8 @@ function normalizeRut(v){return String(v||'').replace(/\./g,'').trim().toUpperCa
 function home(){
  stopScanner(); currentRut=''; scanIso='';
  show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN</div>'+
- '<div class="sub">Centra el QR del carnet dentro del recuadro. Mantén el carnet a la distancia en que el QR se vea nítido.</div>'+
- '<div class="scan"><div id="reader"></div></div>'+
- '<div class="sub">CENTRA SOLO EL QR EN EL RECUADRO. No necesitas acercar más el carnet si el QR ya se ve nítido.</div>'+
+ '<div class="sub">Escanea el QR del carnet chileno para identificar al asistente.</div>'+
+ '<div class="scan"><div id="reader"><div class="scanGuide" aria-hidden="true"></div></div></div>'+
  '<div class="sub">La cámara se usa únicamente para leer el QR. Si no puede leerse, puedes ingresar el RUT manualmente.</div>'+
  '<div class="manual"><div class="manualRow"><input id="manualRut" inputmode="text" autocomplete="off" placeholder="17893792-5"><button class="ghost" onclick="manualSearch()">BUSCAR</button></div></div>');
  waitForScanner();
@@ -75,33 +74,66 @@ function waitForScanner(){if(document.getElementById('reader')&&window.Html5Qrco
 function startScanner(){
  if(scanning)return;
  const target=document.getElementById('reader');if(!target)return;
- scanner=new Html5Qrcode('reader');
+
+ // QR + PDF417: ambos formatos son compatibles con html5-qrcode.
+ // Desactivamos BarcodeDetector para forzar el decoder ZXing, que soporta
+ // PDF417 además de QR.
+ scanner=new Html5Qrcode('reader',{
+   formatsToSupport:[
+     Html5QrcodeSupportedFormats.QR_CODE,
+     Html5QrcodeSupportedFormats.PDF_417
+   ],
+   useBarCodeDetectorIfSupported:false
+ });
+
  const scanConfig={
-   fps:10,
-   formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE],
-   qrbox:function(w,h){
-     const s=Math.max(170,Math.min(210,Math.floor(Math.min(w,h)*0.46)));
-     return {width:s,height:s};
+   fps:8,
+   disableFlip:false,
+   videoConstraints:{
+     facingMode:{ideal:'environment'},
+     width:{ideal:1920},
+     height:{ideal:1080}
+   }
+ };
+
+ // IMPORTANTE:
+ // No usamos qrbox. El decoder recibe el cuadro completo de cámara,
+ // porque a la distancia real del carnet el QR/PDF417 puede quedar
+ // en distintas posiciones dentro del reverso.
+ scanner.start(
+   {facingMode:'environment'},
+   scanConfig,
+   function(decodedText,decodedResult){
+     if(currentRut)return;
+     const rut=extractRut(decodedText);
+     if(!rut){
+       stopScanner();
+       show(
+         '<div class="title"><span class="prompt">&gt;</span> CÓDIGO LEÍDO</div>'+
+         '<div class="status warn">SE LEYÓ UN CÓDIGO, PERO NO SE ENCONTRÓ UN RUN/RUT RECONOCIBLE.</div>'+
+         '<div class="sub">Puedes volver a enfocar el reverso del carnet o ingresar el RUT manualmente.</div>'+
+         '<button class="secondary" onclick="home()">NUEVO ESCANEO</button>'
+       );
+       return;
+     }
+     currentRut=rut;
+     scanIso=new Date().toISOString();
+     stopScanner();
+     consult(rut);
    },
-   aspectRatio:1.0
- };
- const cameraConfig={
-   facingMode:{exact:'environment'},
-   width:{ideal:1920},
-   height:{ideal:1080},
-   advanced:[{focusMode:'continuous'},{zoom:1.35}]
- };
- scanner.start(cameraConfig,scanConfig,
- decoded=>{
-  if(currentRut)return;
-  const rut=extractRut(decoded);
-  if(!rut){stopScanner();show('<div class="title"><span class="prompt">&gt;</span> QR LEÍDO</div><div class="status warn">EL QR FUE LEÍDO, PERO NO SE ENCONTRÓ UN RUT RECONOCIBLE.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
-  currentRut=rut;scanIso=new Date().toISOString();stopScanner();consult(rut)
- },()=>{}).then(()=>{scanning=true}).catch(()=>{
+   function(){ }
+ ).then(function(){
+   scanning=true;
+ }).catch(function(err){
    scanning=false;
-   const box=document.getElementById('reader');if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA. REVISA EL PERMISO DEL NAVEGADOR.</div>'
+   const detail=err&&err.message?err.message:String(err||'');
+   const box=document.getElementById('reader');
+   if(box)box.innerHTML=
+     '<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>'+
+     'ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
 }
+
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
 function extractRut(payload){
  const t=String(payload||'').trim();
