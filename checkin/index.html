@@ -127,12 +127,9 @@ function startScanner(){
    // Por eso la guía visual debe crearse después de scanner.start().
    addCardGuide();
 
-   // Enfoque continuo cuando el navegador lo permite.
-   try{
-     scanner.applyVideoConstraints({
-       advanced:[{focusMode:'continuous'}]
-     }).catch(function(){});
-   }catch(e){}
+   // AUTOFOCUS: pedir enfoque continuo sin fijar una distancia.
+   // Así el iPhone puede reenfocar al acercar o alejar el carnet.
+   enableContinuousAutofocus();
 
    // Zoom muy moderado para mantener el carnet legible sin exigir acercarlo.
    try{
@@ -155,6 +152,39 @@ function startScanner(){
    const box=document.getElementById('reader');
    if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
+}
+
+function enableContinuousAutofocus(){
+ try{
+   if(scanner&&scanner.applyVideoConstraints){
+     scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){});
+   }
+ }catch(e){}
+
+ // Reaplicar sobre la pista real de cámara una sola vez, cuando Safari
+ // ya haya creado el video. Solo usamos capacidades realmente expuestas.
+ setTimeout(function(){
+   try{
+     const target=document.getElementById('reader');
+     const video=target?target.querySelector('video'):null;
+     const stream=video&&video.srcObject;
+     const tracks=stream&&stream.getVideoTracks?stream.getVideoTracks():[];
+     const track=tracks&&tracks[0];
+     if(!track||!track.applyConstraints)return;
+
+     const caps=track.getCapabilities?track.getCapabilities():{};
+     const advanced={};
+     if(Array.isArray(caps.focusMode)&&caps.focusMode.indexOf('continuous')>=0){
+       advanced.focusMode='continuous';
+     }
+     if(caps.pointsOfInterest){
+       advanced.pointsOfInterest=[{x:0.5,y:0.5}];
+     }
+     if(Object.keys(advanced).length){
+       track.applyConstraints({advanced:[advanced]}).catch(function(){});
+     }
+   }catch(e){}
+ },500);
 }
 
 function addCardGuide(){
