@@ -255,40 +255,87 @@ function renderExisting(res) {
 function renderNewUserProfile(rut, refs) {
   currentRut = rut;
   setApp(
-    '<div class="title"><span class="prompt">&gt;</span> VERIFY EMAIL</div>'+
-    '<div class="description">Ingresa tu correo para enviar un código de verificación.</div>'+
+    '<div class="title"><span class="prompt">&gt;</span> ASSISTANT PROFILE</div>'+
+    '<div class="description">Completa tu ficha de asistente para continuar.</div>'+
     '<label>EMAIL</label><input id="newEmail" type="email" placeholder="tu@email.com" autocomplete="email">'+
-    '<div id="verifyStatus"></div>'+
-    '<button id="sendCode">ENVIAR CÓDIGO</button>'+
+    '<label>NOMBRE</label><input id="newNombre" type="text" placeholder="Nombre">'+
+    '<label>APELLIDO</label><input id="newApellido" type="text" placeholder="Apellido">'+
+    '<label>FECHA DE NACIMIENTO</label><input id="newNacimiento" type="date">'+
+    '<label>SEXO</label><select id="newSexo"><option value="">SELECCIONA UNA OPCIÓN</option><option>HOMBRE</option><option>MUJER</option><option>OTRO</option></select>'+
+    '<label>INSTAGRAM</label><input id="newInstagram" placeholder="@tuinstagram">'+
+    '<label>TELÉFONO</label><input id="newTelefono" placeholder="+569...">'+
+    '<div id="profileStatus"></div>'+
+    '<button id="saveProfileBtn">CONTINUAR</button>'+
     '<button class="secondary" onclick="home()">BACK</button>'
   );
-  document.getElementById('sendCode').onclick = function() {
-    const email = document.getElementById('newEmail').value.trim().toLowerCase();
-    if(!email || email.indexOf('@') < 1) {
-      document.getElementById('verifyStatus').innerHTML = '<div class="status error">DEBES INGRESAR UN CORREO VÁLIDO.</div>';
+
+  document.getElementById('saveProfileBtn').onclick = function() {
+    const datos = {
+      documento: currentRut,
+      email: document.getElementById('newEmail').value.trim().toLowerCase(),
+      nombre: document.getElementById('newNombre').value.trim(),
+      apellido: document.getElementById('newApellido').value.trim(),
+      fechaNacimiento: document.getElementById('newNacimiento').value,
+      sexo: document.getElementById('newSexo').value,
+      instagram: document.getElementById('newInstagram').value.trim(),
+      telefono: document.getElementById('newTelefono').value.trim()
+    };
+
+    if(
+      !datos.email || datos.email.indexOf('@') < 1 ||
+      !datos.nombre || !datos.apellido || !datos.fechaNacimiento ||
+      !datos.sexo || !datos.instagram || !datos.telefono
+    ){
+      document.getElementById('profileStatus').innerHTML =
+        '<div class="status error">DEBES COMPLETAR TODA LA FICHA DE ASISTENTE.</div>';
       return;
     }
+
     this.disabled = true;
-    this.textContent = 'CONSULTANDO...';
-    apiCall('consultarEmail',[email],function(err, member) {
-      if(err) return showVerifyError(err.message);
-      if(!member || !member.ok) return showVerifyError(member && member.mensaje || 'NO SE PUDO CONSULTAR LA COMUNIDAD.');
-      if(member.existe && member.tieneRut) return showVerifyError(member.rut !== currentRut ? 'ESTE CORREO YA ESTÁ ASOCIADO A OTRO RUT.' : 'ESTE CORREO YA ESTÁ REGISTRADO PARA ESTE RUT.');
-      apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],function(err2, pending) {
-        if(err2) return showVerifyError(err2.message);
-        if(pending && pending.solicitudExiste) {
-          setApp('<div class="title"><span class="prompt">&gt;</span> REQUEST STATUS</div>'+
-                 '<div class="status">TU SOLICITUD PARA LA SESIÓN 71 YA FUE RECIBIDA Y ESTÁ PENDIENTE DE APROBACIÓN.</div>'+
-                 '<button class="secondary" onclick="home()">BACK</button>');
-          return;
+    this.textContent = 'GUARDANDO FICHA...';
+
+    apiCall('saveNewProfile',[datos],function(err,saved) {
+      if(err){
+        error(err.message);
+        return;
+      }
+
+      if(!saved || !saved.ok){
+        document.getElementById('profileStatus').innerHTML =
+          '<div class="status error">'+esc(saved && saved.mensaje || 'NO SE PUDO GUARDAR LA FICHA.')+'</div>';
+        const b = document.getElementById('saveProfileBtn');
+        if(b){
+          b.disabled = false;
+          b.textContent = 'CONTINUAR';
         }
-        currentEmail = email;
-        apiCall('enviarCodigo',[email],function(err3, sent) {
-          if(err3) return showVerifyError(err3.message);
-          if(!sent || !sent.ok) return showVerifyError(sent && sent.mensaje || 'NO SE PUDO ENVIAR EL CÓDIGO.');
-          renderVerifyCode(refs);
-        });
-      });
+        return;
+      }
+
+      currentEmail = datos.email;
+
+      const data = {
+        ok:true,
+        sesion:71,
+        existe:true,
+        rut:currentRut,
+        email:datos.email,
+        nombre:datos.nombre,
+        apellido:datos.apellido,
+        estado:saved.estado || 'NUEVO',
+        condicion:saved.condicion || 'NUEVO',
+        condiciones:Array.isArray(saved.condiciones)?saved.condiciones:[],
+        referencias:Array.isArray(saved.referencias)?saved.referencias:refs,
+        reservaActual:false,
+        validadoAnteriormente:false,
+        perfil:datos
+      };
+
+      setApp(
+        '<div class="title"><span class="prompt">&gt;</span> REQUEST READY</div>'+
+        '<div class="description">Ya casi estás listo. Completa este último paso para enviar tu solicitud.</div>'+
+        renderReference(data,'newRequest')
+      );
+      bindReference(data,'newRequest');
     });
   };
 }
