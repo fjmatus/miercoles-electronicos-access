@@ -81,9 +81,13 @@ function startScanner(){
   const rut=extractRut(decoded);
   if(!rut){stopScanner();show('<div class="title"><span class="prompt">&gt;</span> QR LEÍDO</div><div class="status warn">EL QR FUE LEÍDO, PERO NO SE ENCONTRÓ UN RUT RECONOCIBLE.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
   currentRut=rut;scanIso=new Date().toISOString();stopScanner();consult(rut)
- },()=>{}).then(()=>{scanning=true}).catch(()=>{
+ },()=>{}).then(()=>{scanning=true}).catch((err)=>{
    scanning=false;
-   const box=document.getElementById('reader');if(box)box.innerHTML='<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA. REVISA EL PERMISO DEL NAVEGADOR.</div>'
+   const detail = err && err.message ? err.message : String(err || '');
+   const box=document.getElementById('reader');
+   if(box) box.innerHTML =
+     '<div class="status warn">NO SE PUDO ACTIVAR LA CÁMARA.<br><br>'+
+     'ERROR TÉCNICO: '+esc(detail)+'</div>';
  });
 }
 function stopScanner(){if(scanner&&scanning)scanner.stop().catch(()=>{});scanner=null;scanning=false}
