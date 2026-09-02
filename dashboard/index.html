@@ -1,1 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<title>Miércoles Electrónicos · Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#050505;--panel:#0b0b0b;--panel2:#101010;--text:#f2f2f2;--muted:#8b8b8b;--line:#242424;--red:#ff1d38;--green:#00e66a;--amber:#ffd84d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{width:min(1180px,94vw);margin:0 auto;padding:24px 0 48px}
+.header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-bottom:1px solid var(--line);padding-bottom:18px}
+.brand{font-weight:900;font-size:21px;letter-spacing:.4px}.brand span{color:var(--red)}
+.session{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-align:right}
+.statusLine{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin-top:12px}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);padding:18px}.kpiLabel{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase}.kpiValue{font-size:31px;font-weight:900;margin-top:7px}.kpiSub{margin-top:6px;font-size:11px;color:var(--muted)}
+.section{margin-top:24px}.sectionTitle{font-size:13px;font-weight:900;letter-spacing:1.5px;margin-bottom:11px;color:#ddd}
+.requestGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.mini{background:var(--panel);border:1px solid var(--line);padding:14px}.mini .n{font-size:24px;font-weight:900}.mini .l{font-size:9px;letter-spacing:1px;color:var(--muted);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.panel{background:var(--panel);border:1px solid var(--line);padding:16px}.panelTitle{font-size:10px;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+.rows{display:flex;flex-direction:column;gap:9px}.row{display:grid;grid-template-columns:minmax(110px,1fr) 54px 66px;gap:8px;align-items:center;font-size:12px}.row .bar{height:7px;background:#1b1b1b;border-radius:999px;overflow:hidden}.row .fill{height:100%;background:var(--red)}.row .pct{text-align:right;color:var(--muted);font-size:11px}.row .key{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chartPanel{background:var(--panel);border:1px solid var(--line);padding:16px;height:360px}.chartWrap{height:290px}
+.conv table{width:100%;border-collapse:collapse;font-size:12px}.conv th,.conv td{padding:10px 8px;border-bottom:1px solid #1d1d1d;text-align:left}.conv th{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}.conv td:not(:first-child),.conv th:not(:first-child){text-align:right}.good{font-weight:900}.foot{margin-top:24px;color:#444;text-align:center;font-size:9px;letter-spacing:1px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.requestGrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.header{display:block}.session{text-align:left;margin-top:8px}.kpis{grid-template-columns:1fr 1fr}.kpiValue{font-size:24px}.row{grid-template-columns:minmax(90px,1fr) 45px 58px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div><div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div><div class="statusLine"><span class="dot" id="liveDot"></span><span id="updated">Cargando datos...</span></div></div>
+    <div class="session">DASHBOARD · SESSION 071<br>UMHO MOONWALKER</div>
+  </div>
 
+  <div class="kpis">
+    <div class="kpi"><div class="kpiLabel">Solicitudes</div><div class="kpiValue" id="kSolicitudes">—</div><div class="kpiSub" id="kSolicitudSub">—</div></div>
+    <div class="kpi"><div class="kpiLabel">Reservas</div><div class="kpiValue" id="kReservas">—</div><div class="kpiSub" id="kReservaSub">—</div></div>
+    <div class="kpi"><div class="kpiLabel">Asistentes</div><div class="kpiValue" id="kCheckins">—</div><div class="kpiSub" id="kConversion">Conversión —</div></div>
+    <div class="kpi"><div class="kpiLabel">Ingresos</div><div class="kpiValue" id="kIngresos">—</div><div class="kpiSub">registrado en CHECK_IN</div></div>
+  </div>
+
+  <section class="section">
+    <div class="sectionTitle">SOLICITUDES · ESTADO ACTUAL</div>
+    <div class="requestGrid">
+      <div class="mini"><div class="n" id="sTotal">—</div><div class="l">TOTAL</div></div>
+      <div class="mini"><div class="n" id="sAprobadas">—</div><div class="l">APROBADAS</div></div>
+      <div class="mini"><div class="n" id="sPendientes">—</div><div class="l">PENDIENTES</div></div>
+      <div class="mini"><div class="n" id="sRechazadas">—</div><div class="l">RECHAZADAS</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionTitle">RESERVAS</div>
+    <div class="grid2">
+      <div class="panel"><div class="panelTitle">INVITADO POR</div><div class="rows" id="rRef"></div></div>
+      <div class="panel"><div class="panelTitle">SEXO</div><div class="rows" id="rSex"></div></div>
+      <div class="panel"><div class="panelTitle">RANGO DE EDAD</div><div class="rows" id="rAge"></div></div>
+      <div class="panel"><div class="panelTitle">TIPO DE ACCESO</div><div class="rows" id="rType"></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionTitle">CHECK-IN</div>
+    <div class="grid2">
+      <div class="panel"><div class="panelTitle">INVITADO POR</div><div class="rows" id="cRef"></div></div>
+      <div class="panel"><div class="panelTitle">SEXO</div><div class="rows" id="cSex"></div></div>
+      <div class="panel"><div class="panelTitle">RANGO DE EDAD</div><div class="rows" id="cAge"></div></div>
+      <div class="panel"><div class="panelTitle">TIPO DE ACCESO</div><div class="rows" id="cType"></div></div>
+      <div class="panel"><div class="panelTitle">MONTO POR TIPO DE ACCESO</div><div class="rows" id="mType"></div></div>
+      <div class="panel"><div class="panelTitle">MONTO POR INVITADO</div><div class="rows" id="mRef"></div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionTitle">CONVERSIÓN POR REFERENCIA</div>
+    <div class="panel conv">
+      <table><thead><tr><th>Referencia</th><th>Reservas</th><th>Check-in</th><th>Conversión</th></tr></thead><tbody id="convBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionTitle">ASISTENTES CADA 30 MINUTOS · 19:00—02:00</div>
+    <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
+  </section>
+
+  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 071</div>
+</div>
+
+<script>
+const CONFIG={BACKEND_URL:'PEGAR_AQUI_URL_BACKEND_DASHBOARD'};
+let chart=null;
+function money(v){return '$'+Number(v||0).toLocaleString('es-CL');}
+function pct(v){return Number(v||0).toLocaleString('es-CL',{maximumFractionDigits:1})+'%';}
+function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+function api(done){
+  const cb='meDashboard_'+Date.now()+'_'+Math.floor(Math.random()*9999);
+  const s=document.createElement('script');
+  const url=CONFIG.BACKEND_URL+'?api=1&fn=dashboard&callback='+cb;
+  window[cb]=d=>{try{done(null,d)}finally{delete window[cb];s.remove()}};
+  s.onerror=()=>{delete window[cb];s.remove();done(new Error('NO SE PUDO CONECTAR CON EL BACKEND DASHBOARD.'))};
+  s.src=url;document.body.appendChild(s);
+}
+function renderRows(id,rows,isMoney){
+  const el=document.getElementById(id); if(!el)return;
+  if(!rows||!rows.length){el.innerHTML='<div style="color:#666;font-size:12px">Sin datos</div>';return;}
+  const max=Math.max.apply(null,rows.map(x=>Number(x.value||0)),[1]);
+  el.innerHTML=rows.map(x=>'<div class="row"><div class="key" title="'+esc(x.key)+'">'+esc(x.key)+'</div><div>'+ (isMoney?money(x.value):Number(x.value||0).toLocaleString('es-CL')) +'</div><div class="pct">'+pct(x.pct||0)+'</div><div class="bar" style="grid-column:1 / -1"><div class="fill" style="width:'+((Number(x.value||0)/max)*100)+'%"></div></div></div>').join('');
+}
+function render(d){
+ document.getElementById('updated').textContent='Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+ document.getElementById('kSolicitudes').textContent=d.solicitudes.total;
+ document.getElementById('kReservas').textContent=d.reservas.total;
+ document.getElementById('kCheckins').textContent=d.checkins.total;
+ document.getElementById('kIngresos').textContent=money(d.checkins.ingresos);
+ document.getElementById('kSolicitudSub').textContent=pct(d.conversion.aprobacion)+' aprobación';
+ document.getElementById('kReservaSub').textContent=pct(d.conversion.reservaSobreAprobados)+' de aprobados';
+ document.getElementById('kConversion').textContent='Conversión '+pct(d.conversion.global);
+ document.getElementById('sTotal').textContent=d.solicitudes.total;
+ document.getElementById('sAprobadas').textContent=d.solicitudes.aprobadas;
+ document.getElementById('sPendientes').textContent=d.solicitudes.pendientes;
+ document.getElementById('sRechazadas').textContent=d.solicitudes.rechazadas;
+ renderRows('rRef',d.reservas.invitadoPor,false);renderRows('rSex',d.reservas.sexo,false);renderRows('rAge',d.reservas.edades,false);renderRows('rType',d.reservas.tipoAcceso,false);
+ renderRows('cRef',d.checkins.invitadoPor,false);renderRows('cSex',d.checkins.sexo,false);renderRows('cAge',d.checkins.edades,false);renderRows('cType',d.checkins.tipoAcceso,false);
+ renderRows('mType',d.checkins.montoPorTipo,true);renderRows('mRef',d.checkins.montoPorInvitado,true);
+ document.getElementById('convBody').innerHTML=(d.conversion.porReferencia||[]).map(x=>'<tr><td>'+esc(x.referencia)+'</td><td>'+x.reservas+'</td><td>'+x.asistentes+'</td><td class="good">'+pct(x.conversion)+'</td></tr>').join('')||'<tr><td colspan="4">Sin datos</td></tr>';
+ drawChart(d.flujo30min||[]);
+}
+function drawChart(points){
+ const ctx=document.getElementById('attendanceChart');
+ if(chart)chart.destroy();
+ chart=new Chart(ctx,{type:'scatter',data:{datasets:[{label:'Asistentes acumulados',data:points.map(p=>({x:p.minutes,y:p.asistentes,label:p.label})),showLine:true,tension:.25,pointRadius:5,pointHoverRadius:7,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){return items[0].raw.label},label:function(item){return ' '+item.raw.y+' asistentes'}}}},scales:{x:{type:'linear',min:19*60,max:26*60,ticks:{stepSize:60,callback:function(v){let h=Math.floor((v%(24*60))/60),m=v%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}},grid:{color:'#1d1d1d'},ticks:{color:'#777'}},y:{beginAtZero:true,precision:0,grid:{color:'#1d1d1d'},ticks:{color:'#777'}}}}});
+}
+function load(){api((err,d)=>{if(err){document.getElementById('liveDot').style.background='var(--red)';document.getElementById('updated').textContent=err.message;return}if(!d||!d.ok){document.getElementById('liveDot').style.background='var(--red)';document.getElementById('updated').textContent=d&&d.mensaje?d.mensaje:'ERROR';return}document.getElementById('liveDot').style.background='var(--green)';render(d)});}
+load();setInterval(load,30000);
+</script>
+</body>
+</html>
