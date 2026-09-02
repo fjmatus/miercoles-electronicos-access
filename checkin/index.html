@@ -84,13 +84,8 @@ function startScanner(){
  });
 
  const scanConfig={
-   fps:6,
-   disableFlip:false,
-   videoConstraints:{
-     facingMode:{ideal:'environment'},
-     width:{ideal:1920},
-     height:{ideal:1080}
-   }
+   fps:5,
+   disableFlip:false
  };
 
  scanner.start(
@@ -99,35 +94,64 @@ function startScanner(){
    function(decodedText,decodedResult){
      if(currentRut)return;
      const rut=extractRut(decodedText);
-     if(!rut){
-       // Código encontrado, pero no trae un RUN/RUT reconocible.
-       return;
-     }
+     if(!rut)return;
      currentRut=rut;
      scanIso=new Date().toISOString();
      stopScanner();
      consult(rut);
    },
-   function(){ }
+   function(){}
  ).then(function(){
    scanning=true;
 
-   // Forzar enfoque continuo cuando el dispositivo/navegador lo soporta.
+   // Una vez abierta la cámara, pedimos al navegador:
+   // - alta resolución cuando esté disponible
+   // - autofocus continuo
+   // - distancia de enfoque cercana, ideal ~18 cm
+   // - pequeño zoom solo si el dispositivo lo soporta
    try{
-     scanner.applyVideoConstraints({
-       focusMode:'continuous'
-     }).catch(function(){});
-   }catch(e){}
+     const caps=scanner.getRunningTrackCameraCapabilities ?
+       scanner.getRunningTrackCameraCapabilities() : null;
 
-   // Usar un pequeño zoom si la cámara lo soporta. No se fuerza un valor
-   // concreto: se toma uno moderado dentro del rango disponible.
-   try{
-     const cap=scanner.getRunningTrackCapabilities();
-     if(cap && cap.zoom && typeof cap.zoom.max==='number' && cap.zoom.max>1){
-       const z=Math.min(cap.zoom.max, Math.max(cap.zoom.min || 1, 1.5));
-       scanner.applyVideoConstraints({
-         advanced:[{zoom:z}]
-       }).catch(function(){});
+     const advanced=[];
+     if(caps && caps.focusMode){
+       advanced.push({focusMode:'continuous'});
+     }
+     if(caps && caps.focusDistance && typeof caps.focusDistance.min==='number'){
+       // La distancia está expresada en metros. Elegimos una distancia
+       // cercana al uso real del carnet, pero respetando el rango del iPhone.
+       const min=caps.focusDistance.min;
+       const max=typeof caps.focusDistance.max==='number' ? caps.focusDistance.max : 10;
+       const ideal=Math.max(min,Math.min(max,0.18));
+       advanced.push({focusDistance:{ideal:ideal}});
+     }
+
+     const constraints={
+       width:{ideal:3840},
+       height:{ideal:2160},
+       frameRate:{ideal:30,max:30}
+     };
+
+     if(advanced.length)constraints.advanced=advanced;
+
+     scanner.applyVideoConstraints(constraints).catch(function(){
+       // Algunos navegadores no exponen focusDistance/focusMode.
+       // Si falla, dejamos funcionar el autofocus nativo.
+       try{
+         scanner.applyVideoConstraints({
+           advanced:[{focusMode:'continuous'}]
+         }).catch(function(){});
+       }catch(e){}
+     });
+
+     // El QR de la cédula es pequeño a la distancia de trabajo.
+     // Zoom moderado si el hardware lo permite, evitando forzarlo en equipos
+     // que no lo soporten.
+     if(caps && caps.zoom && typeof caps.zoom.max==='number' && caps.zoom.max>1){
+       const z=Math.min(caps.zoom.max,Math.max(caps.zoom.min||1,1.25));
+       try{
+         scanner.applyVideoConstraints({advanced:[{zoom:z}]}).catch(function(){});
+       }catch(e){}
      }
    }catch(e){}
  }).catch(function(err){
