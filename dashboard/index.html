@@ -87,8 +87,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   <th>Reservas</th>
   <th>Check-in</th>
   <th>Conversión</th>
+  <th>Ingresos totales</th>
   <th>Monto / invitado</th>
   <th>Gratis</th>
+  <th>% Gratis</th>
+  <th>% Pago</th>
   <th>% Hombre</th>
   <th>% Mujer</th>
   <th>Edad promedio</th>
@@ -160,17 +163,27 @@ function render(d){
  renderRows('rRef',d.reservas.invitadoPor,false);renderRows('rSex',d.reservas.sexo,false);renderRows('rAge',d.reservas.edades,false);renderRows('rType',d.reservas.tipoAcceso,false);
  renderRows('cRef',d.checkins.invitadoPor,false);renderRows('cSex',d.checkins.sexo,false);renderRows('cAge',d.checkins.edades,false);renderRows('cType',d.checkins.tipoAcceso,false);
  renderRows('mType',d.checkins.montoPorTipo,true);renderRows('mRef',d.checkins.montoPorInvitado,true);
- document.getElementById('convBody').innerHTML=(d.conversion.porReferencia||[]).map(x=>'<tr>'+
-  '<td>'+esc(x.referencia)+'</td>'+
-  '<td>'+x.reservas+'</td>'+
-  '<td>'+x.asistentes+'</td>'+
-  '<td class="good">'+pct(x.conversion)+'</td>'+
-  '<td>'+money(x.montoPorInvitado)+'</td>'+
-  '<td>'+Number(x.gratis||0).toLocaleString('es-CL')+'</td>'+
-  '<td>'+pct(x.hombrePct)+'</td>'+
-  '<td>'+pct(x.mujerPct)+'</td>'+
-  '<td>'+(x.edadPromedio==null?'—':Number(x.edadPromedio).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1}))+'</td>'+
-  '</tr>').join('')||'<tr><td colspan="9">Sin datos</td></tr>';
+ document.getElementById('convBody').innerHTML=(d.conversion.porReferencia||[]).map(x=>{
+  const total = Number(x.asistentes||0);
+  const gratis = Number(x.gratis||0);
+  const pago = Math.max(0,total-gratis);
+  const gratisPct = total ? (gratis/total)*100 : 0;
+  const pagoPct = total ? (pago/total)*100 : 0;
+  return '<tr>'+
+    '<td>'+esc(x.referencia)+'</td>'+
+    '<td>'+x.reservas+'</td>'+
+    '<td>'+x.asistentes+'</td>'+
+    '<td class="good">'+pct(x.conversion)+'</td>'+
+    '<td>'+money(x.ingresos)+'</td>'+
+    '<td>'+money(x.montoPorInvitado)+'</td>'+
+    '<td>'+gratis+'</td>'+
+    '<td>'+pct(gratisPct)+'</td>'+
+    '<td>'+pct(pagoPct)+'</td>'+
+    '<td>'+pct(x.hombrePct)+'</td>'+
+    '<td>'+pct(x.mujerPct)+'</td>'+
+    '<td>'+(x.edadPromedio==null?'—':Number(x.edadPromedio).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1}))+'</td>'+
+    '</tr>';
+}).join('')||'<tr><td colspan="12">Sin datos</td></tr>';
  drawChart(d.flujo30min||[]);
 }
 function drawChart(points){
