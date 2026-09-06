@@ -23,11 +23,17 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 .rows{display:flex;flex-direction:column;gap:9px}.row{display:grid;grid-template-columns:minmax(110px,1fr) 54px 66px;gap:8px;align-items:center;font-size:12px}.row .bar{height:7px;background:#1b1b1b;border-radius:999px;overflow:hidden}.row .fill{height:100%;background:var(--red)}.row .pct{text-align:right;color:var(--muted);font-size:11px}.row .key{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chartPanel{background:var(--panel);border:1px solid var(--line);padding:16px;height:360px}.chartWrap{height:290px}
 .conv .tableScroll{overflow-x:auto}
-.conv table{width:100%;min-width:980px;border-collapse:collapse;font-size:12px}
+.conv table{width:100%;min-width:1120px;border-collapse:collapse;font-size:12px}
 .conv th,.conv td{padding:10px 8px;border-bottom:1px solid #1d1d1d;text-align:left;white-space:nowrap}
 .conv th{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
 .conv td:not(:first-child),.conv th:not(:first-child){text-align:right}
 .conv td:first-child,.conv th:first-child{text-align:left}
+.otherDetails{display:inline-block;text-align:left;min-width:260px}
+.otherDetails summary{cursor:pointer;color:#fff;font-size:10px;letter-spacing:.8px}
+.otherList{margin-top:8px;border:1px solid #242424;background:#080808;padding:7px}
+.otherItem{display:grid;grid-template-columns:minmax(120px,1fr) auto auto auto;gap:10px;padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:10px}
+.otherItem:last-child{border-bottom:0}
+.otherItem span:nth-child(2),.otherItem span:nth-child(3),.otherItem span:nth-child(4){text-align:right;color:#aaa}
 .good{font-weight:900}.foot{margin-top:24px;color:#444;text-align:center;font-size:9px;letter-spacing:1px}
 @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.requestGrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.header{display:block}.session{text-align:left;margin-top:8px}.kpis{grid-template-columns:1fr 1fr}.kpiValue{font-size:24px}.row{grid-template-columns:minmax(90px,1fr) 45px 58px}}
@@ -95,6 +101,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   <th>% Hombre</th>
   <th>% Mujer</th>
   <th>Edad promedio</th>
+  <th>Detalle</th>
 </tr></thead><tbody id="convBody"></tbody></table></div>
     </div>
   </section>
@@ -167,8 +174,21 @@ function render(d){
   const total = Number(x.asistentes||0);
   const gratis = Number(x.gratis||0);
   const pago = Math.max(0,total-gratis);
-  const gratisPct = total ? (gratis/total)*100 : 0;
-  const pagoPct = total ? (pago/total)*100 : 0;
+  const gratisPct = x.gratisPct!=null ? Number(x.gratisPct) : (total ? (gratis/total)*100 : 0);
+  const pagoPct = x.pagoPct!=null ? Number(x.pagoPct) : (total ? (pago/total)*100 : 0);
+  const detalle = x.referencia === 'OTRO'
+    ? '<details class="otherDetails"><summary>VER DETALLE ('+Number((x.detallesOtros||[]).length).toLocaleString('es-CL')+')</summary>'+
+        '<div class="otherList">'+
+        ((x.detallesOtros||[]).map(o=>
+          '<div class="otherItem">'+
+            '<span>'+esc(o.referencia)+'</span>'+
+            '<span>'+o.reservas+' reserva'+(o.reservas===1?'':'s')+'</span>'+
+            '<span>'+o.checkins+' check-in</span>'+
+            '<span>'+money(o.ingresos)+'</span>'+
+          '</div>'
+        ).join('') || '<div class="otherItem"><span>SIN DETALLE</span><span>0 reservas</span><span>0 check-in</span><span>$0</span></div>')+
+        '</div></details>'
+    : '—';
   return '<tr>'+
     '<td>'+esc(x.referencia)+'</td>'+
     '<td>'+x.reservas+'</td>'+
@@ -182,8 +202,9 @@ function render(d){
     '<td>'+pct(x.hombrePct)+'</td>'+
     '<td>'+pct(x.mujerPct)+'</td>'+
     '<td>'+(x.edadPromedio==null?'—':Number(x.edadPromedio).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1}))+'</td>'+
+    '<td>'+detalle+'</td>'+
     '</tr>';
-}).join('')||'<tr><td colspan="12">Sin datos</td></tr>';
+}).join('')||'<tr><td colspan="13">Sin datos</td></tr>';
  drawChart(d.flujo30min||[]);
 }
 function drawChart(points){
