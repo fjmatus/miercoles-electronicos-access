@@ -113,10 +113,30 @@ function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'
 function api(done){
   const cb='meDashboard_'+Date.now()+'_'+Math.floor(Math.random()*9999);
   const s=document.createElement('script');
-  const url=CONFIG.BACKEND_URL+'?api=1&fn=dashboard&callback='+cb;
-  window[cb]=d=>{try{done(null,d)}finally{delete window[cb];s.remove()}};
-  s.onerror=()=>{delete window[cb];s.remove();done(new Error('NO SE PUDO CONECTAR CON EL BACKEND DASHBOARD.'))};
-  s.src=url;document.body.appendChild(s);
+  let finished=false;
+  const timer=setTimeout(()=>{
+    if(finished)return;
+    finished=true;
+    try{delete window[cb]}catch(e){}
+    if(s.parentNode)s.remove();
+    done(new Error('EL BACKEND ESTÁ TARDANDO DEMASIADO EN RESPONDER.'),null);
+  },15000);
+
+  const finish=(err,data)=>{
+    if(finished)return;
+    finished=true;
+    clearTimeout(timer);
+    try{delete window[cb]}catch(e){}
+    if(s.parentNode)s.remove();
+    done(err,data);
+  };
+
+  window[cb]=d=>finish(null,d);
+  s.onerror=()=>finish(new Error('NO SE PUDO CONECTAR CON EL BACKEND DASHBOARD.'),null);
+
+  const url=CONFIG.BACKEND_URL+'?api=1&fn=dashboard&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+  s.src=url;
+  document.body.appendChild(s);
 }
 function renderRows(id,rows,isMoney){
   const el=document.getElementById(id); if(!el)return;
@@ -158,5 +178,25 @@ function drawChart(points){
  if(chart)chart.destroy();
  chart=new Chart(ctx,{type:'scatter',data:{datasets:[{label:'Asistentes acumulados',data:points.map(p=>({x:p.minutes,y:p.asistentes,label:p.label})),showLine:true,tension:.25,pointRadius:5,pointHoverRadius:7,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){return items[0].raw.label},label:function(item){return ' '+item.raw.y+' asistentes'}}}},scales:{x:{type:'linear',min:19*60,max:26*60,ticks:{stepSize:60,color:'#777',callback:function(v){let mins=Number(v),h=Math.floor(mins/60),m=mins%60;if(h>=24)h-=24;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,grid:{color:'#1d1d1d'},ticks:{color:'#777'}}}}});
 }
-function load(){api((err,d)=>{if(err){document.getElementById('liveDot').style.background='var(--red)';document.getElementById('updated').textContent=err.message;return}if(!d||!d.ok){document.getElementById('liveDot').style.background='var(--red)';document.getElementById('updated').textContent=d&&d.mensaje?d.mensaje:'ERROR';return}document.getElementById('liveDot').style.background='var(--green)';render(d)});}
-load();setInterval(load,30000);
+function load(){
+  document.getElementById('updated').textContent='Cargando datos...';
+  api((err,d)=>{
+    if(err){
+      document.getElementById('liveDot').style.background='var(--red)';
+      document.getElementById('updated').textContent=err.message;
+      return;
+    }
+    if(!d||!d.ok){
+      document.getElementById('liveDot').style.background='var(--red)';
+      document.getElementById('updated').textContent=d&&d.mensaje?d.mensaje:'ERROR';
+      return;
+    }
+    document.getElementById('liveDot').style.background='var(--green)';
+    render(d);
+  });
+}
+load();
+setInterval(load,30000);
+</script>
+</body>
+</html>
