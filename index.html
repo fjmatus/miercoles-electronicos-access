@@ -83,9 +83,39 @@ function money(v) {
   return n === 0 ? 'GRATIS' : '$' + n.toLocaleString('es-CL');
 }
 function setApp(html) { document.getElementById('app').innerHTML = html; }
+let loadingTimer = null;
+
 function loading(title, sub) {
-  setApp('<div class="title"><span class="prompt">&gt;</span> '+esc(title)+'</div>'+
-         '<div class="status">'+esc(sub)+'</div>');
+  if (loadingTimer) clearInterval(loadingTimer);
+
+  let dots = 0;
+
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> ' +
+    '<span id="loadingTitle">' + esc(title) + '</span></div>' +
+    '<div class="status">' + esc(sub) + '</div>'
+  );
+
+  loadingTimer = setInterval(function() {
+    const el = document.getElementById('loadingTitle');
+
+    if (!el) {
+      clearInterval(loadingTimer);
+      loadingTimer = null;
+      return;
+    }
+
+    dots = (dots + 1) % 4;
+    el.textContent = title + '.'.repeat(dots);
+  }, 400);
+}
+
+function stopLoading() {
+  if (loadingTimer) {
+    clearInterval(loadingTimer);
+    loadingTimer = null;
+  }
+}
 }
 function error(msg) {
   setApp('<div class="title"><span class="prompt">&gt;</span> ERROR</div>'+
@@ -403,6 +433,8 @@ function consult() {
   if(!value) return error('DEBES INGRESAR TU RUT.');
   loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
   apiCall('consultarRut',[value],function(err,res) {
+    stopLoading();
+   
     if(err) return error(err.message);
     if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
     currentRut=res.rut;
