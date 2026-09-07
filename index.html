@@ -287,9 +287,10 @@ function renderNewUserProfile(rut, refs) {
     const email = document.getElementById('newEmail').value.trim().toLowerCase();
     // Keep the same broad email validation used in the S71 flow:
     // format validation, then BD lookup, then verification code.
-    if(!email || email.indexOf('@') < 1 || email.indexOf('.') <= email.indexOf('@') + 1 || /\s/.test(email)) {
-      return error('DEBES INGRESAR UN CORREO ELECTRÓNICO VÁLIDO.');
-    }
+
+    if(!email || email.indexOf('@') < 1) {
+  return error('DEBES INGRESAR UN CORREO ELECTRÓNICO VÁLIDO.');
+}
 
     this.disabled = true;
     this.textContent = 'VERIFICANDO...';
