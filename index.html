@@ -88,8 +88,6 @@ function setApp(html) { document.getElementById('app').innerHTML = html; }
   setApp('<div class="title"><span class="prompt">&gt;</span> '+esc(title)+'</div>'+
          '<div class="status">'+esc(sub)+'</div>');
 }
- 
-}
 function error(msg) {
   setApp('<div class="title"><span class="prompt">&gt;</span> ERROR</div>'+
          '<div class="status error">'+esc(msg)+'</div>'+
