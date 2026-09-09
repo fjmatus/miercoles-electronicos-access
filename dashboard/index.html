@@ -43,7 +43,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 <div class="wrap">
   <div class="header">
     <div><div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div><div class="statusLine"><span class="dot" id="liveDot"></span><span id="updated">Cargando datos...</span></div></div>
-    <div class="session">DASHBOARD · SESSION 071<br>UMHO MOONWALKER</div>
+    <div class="session">DASHBOARD · SESSION 072<br>CHILE BRAVO</div>
   </div>
 
   <div class="kpis">
@@ -110,13 +110,26 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
     <div class="sectionTitle">ASISTENTES CADA 30 MINUTOS · 19:00—02:00</div>
     <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
   </section>
+  <section class="section">
+    <div class="sectionTitle">CHILE BRAVO VS SESSION 071 · COMPARACIÓN ACUMULADA</div>
+    <div class="grid2">
+      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S72 VS S71</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">INGRESOS · S72 VS S71</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
+    </div>
+    <div class="panel" style="margin-top:12px;overflow-x:auto">
+      <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12px">
+        <thead><tr><th>Hora</th><th>Check-in S72</th><th>Check-in S71</th><th>Var. Check-in</th><th>$ S72</th><th>$ S71</th><th>Var. $</th></tr></thead>
+        <tbody id="comparisonBody"></tbody>
+      </table>
+    </div>
+  </section>
 
-  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 071</div>
+  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 072</div>
 </div>
 
 <script>
 const CONFIG={BACKEND_URL:'https://script.google.com/macros/s/AKfycbxT5gjl8HHH_xbf_mzg-Sd5G4jWXpaR2wZIa5GLQWj0tVe8hS00qm68ZgCXUMd6MA8obA/exec'};
-let chart=null;
+let chart=null, comparisonCheckinsChart=null, comparisonMoneyChart=null;
 function money(v){return '$'+Number(v||0).toLocaleString('es-CL');}
 function pct(v){return Number(v||0).toLocaleString('es-CL',{maximumFractionDigits:1})+'%';}
 function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -206,11 +219,48 @@ function render(d){
     '</tr>';
 }).join('')||'<tr><td colspan="13">Sin datos</td></tr>';
  drawChart(d.flujo30min||[]);
+ drawComparison(d.comparacionSesionAnterior||{});
 }
 function drawChart(points){
  const ctx=document.getElementById('attendanceChart');
  if(chart)chart.destroy();
  chart=new Chart(ctx,{type:'scatter',data:{datasets:[{label:'Asistentes acumulados',data:points.map(p=>({x:p.minutes,y:p.asistentes,label:p.label})),showLine:true,tension:.25,pointRadius:5,pointHoverRadius:7,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){return items[0].raw.label},label:function(item){return ' '+item.raw.y+' asistentes'}}}},scales:{x:{type:'linear',min:19*60,max:26*60,ticks:{stepSize:60,color:'#777',callback:function(v){let mins=Number(v),h=Math.floor(mins/60),m=mins%60;if(h>=24)h-=24;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,grid:{color:'#1d1d1d'},ticks:{color:'#777'}}}}});
+}
+
+function signedPct(v){
+ const n=Number(v||0);
+ return (n>0?'+':'')+n.toLocaleString('es-CL',{maximumFractionDigits:1})+'%';
+}
+function drawComparison(c){
+ const points=c.puntos||[], body=document.getElementById('comparisonBody');
+ if(body) body.innerHTML=points.map(p=>'<tr>'+
+   '<td>'+esc(p.label)+'</td>'+
+   '<td style="text-align:right">'+Number(p.checkinsActual||0)+'</td>'+
+   '<td style="text-align:right">'+Number(p.checkinsAnterior||0)+'</td>'+
+   '<td style="text-align:right;font-weight:900">'+signedPct(p.checkinsPct)+'</td>'+
+   '<td style="text-align:right">'+money(p.ingresosActual)+'</td>'+
+   '<td style="text-align:right">'+money(p.ingresosAnterior)+'</td>'+
+   '<td style="text-align:right;font-weight:900">'+signedPct(p.ingresosPct)+'</td>'+
+   '</tr>').join('')||'<tr><td colspan="7">Sin datos</td></tr>';
+
+ const labels=points.map(p=>p.label);
+ if(comparisonCheckinsChart) comparisonCheckinsChart.destroy();
+ comparisonCheckinsChart=new Chart(document.getElementById('comparisonCheckinsChart'),{
+   type:'line',data:{labels:labels,datasets:[
+    {label:'Sesión 72',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+    {label:'Sesión 71',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
+   scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,ticks:{color:'#777'},grid:{color:'#1d1d1d'}}}}
+ });
+
+ if(comparisonMoneyChart) comparisonMoneyChart.destroy();
+ comparisonMoneyChart=new Chart(document.getElementById('comparisonMoneyChart'),{
+   type:'line',data:{labels:labels,datasets:[
+    {label:'Sesión 72',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+    {label:'Sesión 71',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
+   scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,ticks:{color:'#777',callback:function(v){return money(v)}},grid:{color:'#1d1d1d'}}}}
+ });
 }
 function load(){
   document.getElementById('updated').textContent='Cargando datos...';
