@@ -207,43 +207,11 @@ function setApp(html) { document.getElementById('app').innerHTML = html; }
 
 function error(msg) {
 
-  setApp('<div class="title"><span class="prompt">&gt;</span> ERROR</div>'+
+  setApp('<div class="title"><span class="prompt">&gt;</span> CONEXIÓN TEMPORALMENTE NO DISPONIBLE</div>'+
 
          '<div class="status error">'+esc(msg)+'</div>'+
 
          '<button class="secondary" onclick="home()">BACK</button>');
-
-}
-
-function apiConnectionError(rut) {
-
-  window.retryRut = rut || '';
-
-  setApp(
-    '<div class="title"><span class="prompt">&gt;</span> ERROR TEMPORAL</div>'+
-    '<div class="status error">NO PUDIMOS COMPLETAR LA CONEXIÓN EN ESTE MOMENTO. POR FAVOR, INTENTA NUEVAMENTE.</div>'+
-    '<button id="retryApi">REINTENTAR</button>'+
-    '<button class="secondary" onclick="home()">BACK</button>'
-  );
-
-  const retry = document.getElementById('retryApi');
-  if(retry) retry.onclick = function() {
-    const retryRut = window.retryRut || '';
-    if(!retryRut) return home();
-    loading('SEARCHING...','RETRYING COMMUNITY HISTORY...');
-    apiCall('consultarRut',[retryRut],function(err,res) {
-      if(err) return apiConnectionError(retryRut);
-      if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
-      currentRut=res.rut;
-      currentEmail=res.email||'';
-      currentData=res;
-      if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
-      if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
-      if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
-      if(res.reservaActual) return renderExisting(res);
-      renderExisting(res);
-    });
-  };
 
 }
 
@@ -281,7 +249,7 @@ function apiCall(fn, args, done) {
 
     cleanup();
 
-    done(new Error('NO SE PUDO CONECTAR CON LA API.'), null);
+    done(new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'), null);
 
   };
 
@@ -825,7 +793,7 @@ function consult() {
 
   apiCall('consultarRut',[value],function(err,res) {
 
-    if(err) return apiConnectionError(value);
+    if(err) return error(err.message);
 
     if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
 
