@@ -80,14 +80,20 @@ button:disabled{opacity:.5;cursor:wait}
 
 .small{margin-top:14px;color:#666;font-size:9px;line-height:1.7}
 
-.searchingTitle{display:inline-block;min-width:125px}
-.searchingTitle .dots{display:inline-block;width:28px;text-align:left}
-.searchingTitle .dots::after{content:'.';display:inline-block;animation:thinkingDots 1.05s steps(1,end) infinite}
+.searchingTitle{display:inline-block;min-width:110px}
+
+.searchingTitle .dots{display:inline-block;width:24px;text-align:left}
+
+.searchingTitle .dots::after{content:'...';display:inline-block;animation:thinkingDots 1.4s ease-in-out infinite;transform-origin:left center}
+
 @keyframes thinkingDots{
-  0%,24%{content:'.'}
-  25%,49%{content:'..'}
-  50%,74%{content:'...'}
-  75%,100%{content:'..'}
+
+  0%,100%{content:'.';opacity:.35;transform:scaleX(.72)}
+
+  33%{content:'..';opacity:.65;transform:scaleX(.88)}
+
+  66%{content:'...';opacity:1;transform:scaleX(1)}
+
 }
 
 
@@ -152,9 +158,6 @@ let currentRut = '';
 let currentEmail = '';
 
 let currentData = null;
-let activeApiRequests = 0;
-let consultInProgress = false;
-let requestSequence = 0;
 
 function esc(v) {
 
@@ -208,91 +211,61 @@ function error(msg) {
 
 }
 
-async function apiCall(fn, args, done) {
-  const requestId = ++requestSequence;
-  const startedAt = performance.now();
+function apiCall(fn, args, done) {
 
-  // Mostrar siempre una espera visible mientras el backend responde.
-  // consultarRut mantiene el SEARCHING... existente; las demás acciones
-  // usan PROCESSING... con la misma animación de puntitos.
-  if (fn !== 'consultarRut') {
-    loading('PROCESSING...','PLEASE WAIT...');
-  }
-  activeApiRequests++;
+  const callbackName = 'meCb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
 
-  console.log('GURHUB GITHUB DIAG | REQUEST START | id=' + requestId + ' | fn=' + fn + ' | active=' + activeApiRequests);
+  let script = document.createElement('script');
 
-  const callbackName = 'meFetchCb_' + Date.now() + '_' + requestId;
-  const params = new URLSearchParams();
-  params.set('api','1');
-  params.set('fn',fn);
-  params.set('callback',callbackName);
-  params.set('args',JSON.stringify(args || []));
-  const url = API_URL + '?' + params.toString();
+  let finished = false;
 
-  console.log('GURHUB GITHUB DIAG | FETCH START | id=' + requestId + ' | url=' + url);
+  const cleanup = () => {
 
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-store'
-    });
+    try { delete window[callbackName]; } catch(e) {}
 
-    const texto = await response.text();
-    const elapsed = Math.round(performance.now() - startedAt);
-    const contentType = response.headers.get('content-type') || '(sin content-type)';
+    if (script && script.parentNode) script.parentNode.removeChild(script);
 
-    console.log('GURHUB GITHUB DIAG | RESPONSE | id=' + requestId +
-      ' | status=' + response.status +
-      ' | ok=' + response.ok +
-      ' | elapsed=' + elapsed + ' ms');
-    console.log('GURHUB GITHUB DIAG | FINAL URL | id=' + requestId + ' | ' + response.url);
-    console.log('GURHUB GITHUB DIAG | CONTENT-TYPE | id=' + requestId + ' | ' + contentType);
-    console.log('GURHUB GITHUB DIAG | BODY LENGTH | id=' + requestId + ' | ' + texto.length);
-    console.log('GURHUB GITHUB DIAG | BODY PREVIEW | id=' + requestId + ' | ' + texto.slice(0, 1000));
+  };
 
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status);
-    }
+  window[callbackName] = function(result) {
 
-    let result;
-    const trimmed = texto.trim();
+    finished = true;
 
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      result = JSON.parse(trimmed);
-    } else {
-      const prefix = callbackName + '(';
-      if (trimmed.indexOf(prefix) === 0) {
+    cleanup();
 
-const jsonText = trimmed
-  .slice(prefix.length)
-  .replace(/\);\s*$/, '');
+    done(null, result);
 
-result = JSON.parse(jsonText);
-       
-      } else {
-        const match = trimmed.match(/^[A-Za-z_$][A-Za-z0-9_$]*\(([\s\S]*)\);?\s*$/);
-        if (!match) throw new Error('Respuesta del servidor no válida.');
-        result = JSON.parse(match[1]);
-      }
-    }
+  };
 
-    activeApiRequests--;
-    console.log('GURHUB GITHUB DIAG | REQUEST END | id=' + requestId + ' | active=' + activeApiRequests);
-    done(null, result);
+  script.onerror = function() {
 
-  } catch (error) {
-    const elapsed = Math.round(performance.now() - startedAt);
-    activeApiRequests--;
-    console.error('GURHUB GITHUB DIAG | REQUEST ERROR | id=' + requestId +
-      ' | elapsed=' + elapsed + ' ms | active=' + activeApiRequests, error);
-    done(error, null);
-  }
+    if (finished) return;
+
+    finished = true;
+
+    cleanup();
+
+    done(new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'), null);
+
+  };
+
+  const params = new URLSearchParams();
+
+  params.set('api','1');
+
+  params.set('fn',fn);
+
+  params.set('callback',callbackName);
+
+  params.set('args',JSON.stringify(args || []));
+
+  script.src = API_URL + '?' + params.toString();
+
+  document.head.appendChild(script);
+
 }
 
 function home() {
-  consultInProgress = false;
 
   setApp(
 
@@ -807,7 +780,6 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 }
 
 function consult() {
-  if (consultInProgress) return;
 
   const value=(document.getElementById('rutInput').value||'').trim();
 
@@ -817,12 +789,9 @@ function consult() {
 
   apiCall('consultarRut',[value],function(err,res) {
 
-    if(err) { consultInProgress=false; return error(err.message); }
+    if(err) return error(err.message);
 
-    if(!res || !res.ok) {
-      consultInProgress=false;
-      return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
-    }
+    if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
 
     currentRut=res.rut;
 
@@ -830,13 +799,13 @@ function consult() {
 
     currentData=res;
 
-    if(res.validadoAnteriormente && !res.reservaActual) { consultInProgress=false; return renderExisting(res); }
+    if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
 
-    if(res.solicitudExiste && !res.reservaActual) { consultInProgress=false; return renderPendingRequest(res); }
+    if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
 
-    if(!res.existe) { consultInProgress=false; return renderNewUserProfile(res.rut,res.referencias||[]); }
+    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
 
-    if(res.reservaActual) { consultInProgress=false; return renderExisting(res); }
+    if(res.reservaActual) return renderExisting(res);
 
     renderExisting(res);
 
