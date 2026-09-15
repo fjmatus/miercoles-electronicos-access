@@ -211,6 +211,13 @@ function error(msg) {
 async function apiCall(fn, args, done) {
   const requestId = ++requestSequence;
   const startedAt = performance.now();
+
+  // Mostrar siempre una espera visible mientras el backend responde.
+  // consultarRut mantiene el SEARCHING... existente; las demás acciones
+  // usan PROCESSING... con la misma animación de puntitos.
+  if (fn !== 'consultarRut') {
+    loading('PROCESSING...','PLEASE WAIT...');
+  }
   activeApiRequests++;
 
   console.log('GURHUB GITHUB DIAG | REQUEST START | id=' + requestId + ' | fn=' + fn + ' | active=' + activeApiRequests);
