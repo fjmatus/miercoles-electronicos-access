@@ -85,6 +85,8 @@ button:disabled{opacity:.5;cursor:wait}
 .searchingTitle .dots{display:inline-block;width:24px;text-align:left}
 
 .searchingTitle .dots::after{content:'...';display:inline-block;animation:thinkingDots 1.4s ease-in-out infinite;transform-origin:left center}
+.processingDots{display:inline-block;width:24px;text-align:left}
+.processingDots::after{content:'...';display:inline-block;animation:thinkingDots 1.4s ease-in-out infinite;transform-origin:left center}
 
 @keyframes thinkingDots{
 
@@ -350,8 +352,11 @@ function bindReference(data, action) {
     if(referencia === 'OTRO' && !otro) return error('DEBES INDICAR QUIÉN.');
 
     btn.disabled = true;
-
-    btn.textContent = 'GUARDANDO...';
+      if(action === 'reserve'){
+        btn.innerHTML = 'GUARDANDO<span class="processingDots"></span>';
+      }else{
+        btn.textContent = 'GUARDANDO...';
+      }
 
     const fn = action === 'reserve' ? 'crearReserva' : (action === 'newRequest' ? 'solicitarAccesoNuevo' : 'solicitarAcceso');
 
