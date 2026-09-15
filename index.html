@@ -13,7 +13,7 @@
 <meta name="theme-color" content="#050505">
 
 <title>Miércoles Electrónicos</title>
-<!-- GURHUB SESSION 73 · original look & feel + fetch transport -->
+<!-- SESSION 73 · original look & feel + proven FETCH transport -->
 
 <style>
 
@@ -264,9 +264,7 @@ async function apiCall(fn, args, done) {
     } else {
       const prefix = callbackName + '(';
       if (trimmed.indexOf(prefix) === 0) {
-        const jsonText = trimmed
-          .slice(prefix.length)
-          .replace(/\);\s*$/, '');
+        const jsonText = trimmed.slice(prefix.length).replace(/;\s*$/, '');
         result = JSON.parse(jsonText);
       } else {
         const match = trimmed.match(/^[A-Za-z_$][A-Za-z0-9_$]*\(([\s\S]*)\);?\s*$/);
@@ -803,18 +801,15 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 }
 
 function consult() {
+
   if (consultInProgress) {
     console.log('GURHUB GITHUB DIAG | CONSULT BLOCKED | duplicate request prevented');
     return;
   }
 
-  const input = document.getElementById('rutInput');
-  const value = (input?.value || '').trim();
+  const value=(document.getElementById('rutInput').value||'').trim();
 
-  if(!value) {
-    error('DEBES INGRESAR TU RUT.');
-    return;
-  }
+  if(!value) return error('DEBES INGRESAR TU RUT.');
 
   consultInProgress = true;
 
@@ -826,6 +821,7 @@ function consult() {
   loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
 
   apiCall('consultarRut',[value],function(err,res) {
+
     consultInProgress = false;
 
     console.log(
@@ -834,27 +830,26 @@ function consult() {
       ' | active=' + activeApiRequests
     );
 
-    if(err) {
-      error(err.message);
-      return;
-    }
+    if(err) return error(err.message);
 
-    if(!res || !res.ok) {
-      error((res && res.mensaje) || 'NO SE PUDO CONSULTAR EL RUT.');
-      return;
-    }
+    if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
 
-    currentRut = res.rut;
-    currentEmail = res.email || '';
-    currentData = res;
+    currentRut=res.rut;
+    currentEmail=res.email||'';
+    currentData=res;
 
     if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
+
     if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
+
     if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
+
     if(res.reservaActual) return renderExisting(res);
 
     renderExisting(res);
+
   });
+
 }
 
 home();
