@@ -91,30 +91,19 @@ function error(msg) {
 async function apiCall(fn, args, done) {
   const requestId = ++requestSequence;
   const startedAt = performance.now();
-
   activeApiRequests++;
 
-  console.log(
-    'GURHUB GITHUB DIAG | REQUEST START | id=' + requestId +
-    ' | fn=' + fn +
-    ' | active=' + activeApiRequests +
-    ' | t=' + Math.round(startedAt)
-  );
+  console.log('GURHUB GITHUB DIAG | REQUEST START | id=' + requestId + ' | fn=' + fn + ' | active=' + activeApiRequests);
 
   const callbackName = 'meFetchCb_' + Date.now() + '_' + requestId;
-
   const params = new URLSearchParams();
   params.set('api','1');
   params.set('fn',fn);
   params.set('callback',callbackName);
   params.set('args',JSON.stringify(args || []));
-
   const url = API_URL + '?' + params.toString();
 
-  console.log(
-    'GURHUB GITHUB DIAG | FETCH START | id=' + requestId +
-    ' | fn=' + fn
-  );
+  console.log('GURHUB GITHUB DIAG | FETCH START | id=' + requestId + ' | url=' + url);
 
   try {
     const response = await fetch(url, {
@@ -124,59 +113,48 @@ async function apiCall(fn, args, done) {
     });
 
     const texto = await response.text();
+    const elapsed = Math.round(performance.now() - startedAt);
+    const contentType = response.headers.get('content-type') || '(sin content-type)';
+
+    console.log('GURHUB GITHUB DIAG | RESPONSE | id=' + requestId +
+      ' | status=' + response.status +
+      ' | ok=' + response.ok +
+      ' | elapsed=' + elapsed + ' ms');
+    console.log('GURHUB GITHUB DIAG | FINAL URL | id=' + requestId + ' | ' + response.url);
+    console.log('GURHUB GITHUB DIAG | CONTENT-TYPE | id=' + requestId + ' | ' + contentType);
+    console.log('GURHUB GITHUB DIAG | BODY LENGTH | id=' + requestId + ' | ' + texto.length);
+    console.log('GURHUB GITHUB DIAG | BODY PREVIEW | id=' + requestId + ' | ' + texto.slice(0, 1000));
 
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
 
     let result;
+    const trimmed = texto.trim();
 
-    /*
-     The backend returns JSONP-shaped text:
-       callbackName({...});
-     We keep the temporary callback parameter so the current
-     Apps Script endpoint follows the same response path.
-     We only parse the JSON object; the callback is never executed.
-    */
-    const prefix = callbackName + '(';
-    if (texto.indexOf(prefix) !== 0) {
-      throw new Error('Respuesta del servidor no válida.');
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      result = JSON.parse(trimmed);
+    } else {
+      const prefix = callbackName + '(';
+      if (trimmed.indexOf(prefix) === 0) {
+        const jsonText = trimmed.slice(prefix.length).replace(/;\s*$/, '');
+        result = JSON.parse(jsonText);
+      } else {
+        const match = trimmed.match(/^[A-Za-z_$][A-Za-z0-9_$]*\(([\s\S]*)\);?\s*$/);
+        if (!match) throw new Error('Respuesta del servidor no válida.');
+        result = JSON.parse(match[1]);
+      }
     }
 
-    const jsonText = texto.slice(prefix.length).replace(/;\s*$/, '');
-
-    try {
-      result = JSON.parse(jsonText);
-    } catch (parseError) {
-      throw new Error('No pudimos interpretar la respuesta del servidor.');
-    }
-
-    const elapsed = Math.round(performance.now() - startedAt);
     activeApiRequests--;
-
-    console.log(
-      'GURHUB GITHUB DIAG | REQUEST END | id=' + requestId +
-      ' | fn=' + fn +
-      ' | type=FETCH' +
-      ' | http=' + response.status +
-      ' | elapsed=' + elapsed + ' ms' +
-      ' | active=' + activeApiRequests
-    );
-
+    console.log('GURHUB GITHUB DIAG | REQUEST END | id=' + requestId + ' | active=' + activeApiRequests);
     done(null, result);
 
   } catch (error) {
     const elapsed = Math.round(performance.now() - startedAt);
     activeApiRequests--;
-
-    console.error(
-      'GURHUB GITHUB DIAG | REQUEST ERROR | id=' + requestId +
-      ' | fn=' + fn +
-      ' | elapsed=' + elapsed + ' ms' +
-      ' | active=' + activeApiRequests,
-      error
-    );
-
+    console.error('GURHUB GITHUB DIAG | REQUEST ERROR | id=' + requestId +
+      ' | elapsed=' + elapsed + ' ms | active=' + activeApiRequests, error);
     done(error, null);
   }
 }
