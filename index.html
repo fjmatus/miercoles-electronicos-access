@@ -808,6 +808,13 @@ function consult() {
     );
   }
 
+  if(tipoDocumento === 'PASAPORTE') {
+    const passport = value.toUpperCase().replace(/[.\-\s']/g,'');
+    if(!/^[A-Z0-9]{5,9}$/.test(passport)) {
+      return error('DEBES INGRESAR UN PASAPORTE VÁLIDO.');
+    }
+  }
+
   loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
 
   apiCall('consultarDocumento',[tipoDocumento,value],function(err,res) {
