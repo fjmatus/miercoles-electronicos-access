@@ -35,11 +35,12 @@ button{border:0;border-radius:8px;padding:14px 18px;margin-top:14px;cursor:point
 /*
  GURHUB GitHub frontend
  Baseline: Session 73
- DIAGNOSTIC V2:
- - Same JSONP transport.
- - No backend changes.
+ FETCH V3:
+ - Uses fetch() instead of JSONP.
+ - No backend logic changes.
  - Logs request start/end, elapsed time and active requests.
  - Prevents duplicate clicks while a request is pending.
+ - Parses the existing JSONP-shaped backend response without executing it.
 */
 
 const API_URL = 'https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyNzqxny24qufWQkymsJ1AAptfY_EFpwaRtNnmeX3l5_EkMww/exec';
@@ -87,7 +88,7 @@ function error(msg) {
   );
 }
 
-function apiCall(fn, args, done) {
+async function apiCall(fn, args, done) {
   const requestId = ++requestSequence;
   const startedAt = performance.now();
 
@@ -100,15 +101,49 @@ function apiCall(fn, args, done) {
     ' | t=' + Math.round(startedAt)
   );
 
-  const callbackName = 'meCb_' + Date.now() + '_' + requestId + '_' +
-    Math.floor(Math.random()*100000);
+  const params = new URLSearchParams();
+  params.set('api','1');
+  params.set('fn',fn);
+  params.set('args',JSON.stringify(args || []));
 
-  const script = document.createElement('script');
-  let finished = false;
+  const url = API_URL + '?' + params.toString();
 
-  const finish = function(type, err, result) {
-    if (finished) return;
-    finished = true;
+  console.log(
+    'GURHUB GITHUB DIAG | FETCH START | id=' + requestId +
+    ' | fn=' + fn
+  );
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store'
+    });
+
+    const texto = await response.text();
+
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+
+    let result;
+
+    /*
+     The current backend returns JSONP-shaped text:
+       callbackName({...});
+     For fetch() we remove only that wrapper and parse the JSON.
+    */
+    const match = texto.match(/^[^(]*\(([\s\S]*)\);?\s*$/);
+
+    if (!match) {
+      throw new Error('Respuesta del servidor no válida.');
+    }
+
+    try {
+      result = JSON.parse(match[1]);
+    } catch (parseError) {
+      throw new Error('No pudimos interpretar la respuesta del servidor.');
+    }
 
     const elapsed = Math.round(performance.now() - startedAt);
     activeApiRequests--;
@@ -116,46 +151,28 @@ function apiCall(fn, args, done) {
     console.log(
       'GURHUB GITHUB DIAG | REQUEST END | id=' + requestId +
       ' | fn=' + fn +
-      ' | type=' + type +
+      ' | type=FETCH' +
+      ' | http=' + response.status +
       ' | elapsed=' + elapsed + ' ms' +
       ' | active=' + activeApiRequests
     );
 
-    cleanup();
-    done(err, result);
-  };
+    done(null, result);
 
-  const cleanup = () => {
-    try { delete window[callbackName]; } catch(e) {}
-    if (script.parentNode) script.parentNode.removeChild(script);
-  };
+  } catch (error) {
+    const elapsed = Math.round(performance.now() - startedAt);
+    activeApiRequests--;
 
-  window[callbackName] = function(result) {
-    finish('CALLBACK', null, result);
-  };
-
-  script.onerror = function() {
-    finish(
-      'ERROR',
-      new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'),
-      null
+    console.error(
+      'GURHUB GITHUB DIAG | REQUEST ERROR | id=' + requestId +
+      ' | fn=' + fn +
+      ' | elapsed=' + elapsed + ' ms' +
+      ' | active=' + activeApiRequests,
+      error
     );
-  };
 
-  const params = new URLSearchParams();
-  params.set('api','1');
-  params.set('fn',fn);
-  params.set('callback',callbackName);
-  params.set('args',JSON.stringify(args || []));
-
-  script.src = API_URL + '?' + params.toString();
-
-  console.log(
-    'GURHUB GITHUB DIAG | SCRIPT APPEND | id=' + requestId +
-    ' | fn=' + fn
-  );
-
-  document.head.appendChild(script);
+    done(error, null);
+  }
 }
 
 function home() {
