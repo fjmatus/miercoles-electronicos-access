@@ -101,9 +101,12 @@ async function apiCall(fn, args, done) {
     ' | t=' + Math.round(startedAt)
   );
 
+  const callbackName = 'meFetchCb_' + Date.now() + '_' + requestId;
+
   const params = new URLSearchParams();
   params.set('api','1');
   params.set('fn',fn);
+  params.set('callback',callbackName);
   params.set('args',JSON.stringify(args || []));
 
   const url = API_URL + '?' + params.toString();
@@ -129,18 +132,21 @@ async function apiCall(fn, args, done) {
     let result;
 
     /*
-     The current backend returns JSONP-shaped text:
+     The backend returns JSONP-shaped text:
        callbackName({...});
-     For fetch() we remove only that wrapper and parse the JSON.
+     We keep the temporary callback parameter so the current
+     Apps Script endpoint follows the same response path.
+     We only parse the JSON object; the callback is never executed.
     */
-    const match = texto.match(/^[^(]*\(([\s\S]*)\);?\s*$/);
-
-    if (!match) {
+    const prefix = callbackName + '(';
+    if (texto.indexOf(prefix) !== 0) {
       throw new Error('Respuesta del servidor no válida.');
     }
 
+    const jsonText = texto.slice(prefix.length).replace(/;\s*$/, '');
+
     try {
-      result = JSON.parse(match[1]);
+      result = JSON.parse(jsonText);
     } catch (parseError) {
       throw new Error('No pudimos interpretar la respuesta del servidor.');
     }
