@@ -137,8 +137,12 @@ async function apiCall(fn, args, done) {
     } else {
       const prefix = callbackName + '(';
       if (trimmed.indexOf(prefix) === 0) {
-        const jsonText = trimmed.slice(prefix.length).replace(/;\s*$/, '');
-        result = JSON.parse(jsonText);
+      
+       const jsonText = trimmed
+  .slice(prefix.length)
+  .replace(/\);\s*$/, '');
+
+result = JSON.parse(jsonText);
       } else {
         const match = trimmed.match(/^[A-Za-z_$][A-Za-z0-9_$]*\(([\s\S]*)\);?\s*$/);
         if (!match) throw new Error('Respuesta del servidor no válida.');
