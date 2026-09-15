@@ -93,6 +93,7 @@ async function apiCall(fn, args, done) {
   const startedAt = performance.now();
   activeApiRequests++;
 
+  console.log('GURHUB GITHUB DIAG | REQUEST START | id=' + requestId + ' | fn=' + fn + ' | active=' + activeApiRequests);
 
   const callbackName = 'meFetchCb_' + Date.now() + '_' + requestId;
   const params = new URLSearchParams();
@@ -102,6 +103,7 @@ async function apiCall(fn, args, done) {
   params.set('args',JSON.stringify(args || []));
   const url = API_URL + '?' + params.toString();
 
+  console.log('GURHUB GITHUB DIAG | FETCH START | id=' + requestId + ' | url=' + url);
 
   try {
     const response = await fetch(url, {
@@ -111,6 +113,18 @@ async function apiCall(fn, args, done) {
     });
 
     const texto = await response.text();
+    const elapsed = Math.round(performance.now() - startedAt);
+    const contentType = response.headers.get('content-type') || '(sin content-type)';
+
+    console.log('GURHUB GITHUB DIAG | RESPONSE | id=' + requestId +
+      ' | status=' + response.status +
+      ' | ok=' + response.ok +
+      ' | elapsed=' + elapsed + ' ms');
+    console.log('GURHUB GITHUB DIAG | FINAL URL | id=' + requestId + ' | ' + response.url);
+    console.log('GURHUB GITHUB DIAG | CONTENT-TYPE | id=' + requestId + ' | ' + contentType);
+    console.log('GURHUB GITHUB DIAG | BODY LENGTH | id=' + requestId + ' | ' + texto.length);
+    console.log('GURHUB GITHUB DIAG | BODY PREVIEW | id=' + requestId + ' | ' + texto.slice(0, 1000));
+
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
@@ -123,8 +137,13 @@ async function apiCall(fn, args, done) {
     } else {
       const prefix = callbackName + '(';
       if (trimmed.indexOf(prefix) === 0) {
-        const jsonText = trimmed.slice(prefix.length).replace(/\);\s*$/, '');
-        result = JSON.parse(jsonText);
+
+const jsonText = trimmed
+  .slice(prefix.length)
+  .replace(/\);\s*$/, '');
+
+result = JSON.parse(jsonText);
+       
       } else {
         const match = trimmed.match(/^[A-Za-z_$][A-Za-z0-9_$]*\(([\s\S]*)\);?\s*$/);
         if (!match) throw new Error('Respuesta del servidor no válida.');
@@ -133,12 +152,14 @@ async function apiCall(fn, args, done) {
     }
 
     activeApiRequests--;
+    console.log('GURHUB GITHUB DIAG | REQUEST END | id=' + requestId + ' | active=' + activeApiRequests);
     done(null, result);
 
   } catch (error) {
     const elapsed = Math.round(performance.now() - startedAt);
     activeApiRequests--;
-    console.error('GURHUB FETCH ERROR | id=' + requestId + ' | elapsed=' + elapsed + ' ms', error);
+    console.error('GURHUB GITHUB DIAG | REQUEST ERROR | id=' + requestId +
+      ' | elapsed=' + elapsed + ' ms | active=' + activeApiRequests, error);
     done(error, null);
   }
 }
