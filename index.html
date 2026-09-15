@@ -35,8 +35,11 @@ button{border:0;border-radius:8px;padding:14px 18px;margin-top:14px;cursor:point
 /*
  GURHUB GitHub frontend
  Baseline: Session 73
- Uses the SAME public Apps Script API and function names as the current GS.
- No polling, no artificial timeout, no extra API calls.
+ DIAGNOSTIC V2:
+ - Same JSONP transport.
+ - No backend changes.
+ - Logs request start/end, elapsed time and active requests.
+ - Prevents duplicate clicks while a request is pending.
 */
 
 const API_URL = 'https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyNzqxny24qufWQkymsJ1AAptfY_EFpwaRtNnmeX3l5_EkMww/exec';
@@ -45,6 +48,9 @@ const SESSION = 73;
 let currentRut = '';
 let currentEmail = '';
 let currentData = null;
+let activeApiRequests = 0;
+let consultInProgress = false;
+let requestSequence = 0;
 
 function esc(v) {
   return String(v == null ? '' : v)
@@ -81,15 +87,43 @@ function error(msg) {
   );
 }
 
-/*
- IMPORTANT:
- This is deliberately the same JSONP transport used by the original HTML.
- There is NO setTimeout and NO client-side polling.
-*/
 function apiCall(fn, args, done) {
-  const callbackName = 'meCb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  const requestId = ++requestSequence;
+  const startedAt = performance.now();
+
+  activeApiRequests++;
+
+  console.log(
+    'GURHUB GITHUB DIAG | REQUEST START | id=' + requestId +
+    ' | fn=' + fn +
+    ' | active=' + activeApiRequests +
+    ' | t=' + Math.round(startedAt)
+  );
+
+  const callbackName = 'meCb_' + Date.now() + '_' + requestId + '_' +
+    Math.floor(Math.random()*100000);
+
   const script = document.createElement('script');
   let finished = false;
+
+  const finish = function(type, err, result) {
+    if (finished) return;
+    finished = true;
+
+    const elapsed = Math.round(performance.now() - startedAt);
+    activeApiRequests--;
+
+    console.log(
+      'GURHUB GITHUB DIAG | REQUEST END | id=' + requestId +
+      ' | fn=' + fn +
+      ' | type=' + type +
+      ' | elapsed=' + elapsed + ' ms' +
+      ' | active=' + activeApiRequests
+    );
+
+    cleanup();
+    done(err, result);
+  };
 
   const cleanup = () => {
     try { delete window[callbackName]; } catch(e) {}
@@ -97,17 +131,15 @@ function apiCall(fn, args, done) {
   };
 
   window[callbackName] = function(result) {
-    if (finished) return;
-    finished = true;
-    cleanup();
-    done(null, result);
+    finish('CALLBACK', null, result);
   };
 
   script.onerror = function() {
-    if (finished) return;
-    finished = true;
-    cleanup();
-    done(new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'), null);
+    finish(
+      'ERROR',
+      new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'),
+      null
+    );
   };
 
   const params = new URLSearchParams();
@@ -117,10 +149,18 @@ function apiCall(fn, args, done) {
   params.set('args',JSON.stringify(args || []));
 
   script.src = API_URL + '?' + params.toString();
+
+  console.log(
+    'GURHUB GITHUB DIAG | SCRIPT APPEND | id=' + requestId +
+    ' | fn=' + fn
+  );
+
   document.head.appendChild(script);
 }
 
 function home() {
+  consultInProgress = false;
+
   setApp(
     '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
     '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Ingresa tu RUT para continuar:</div>'+
@@ -129,6 +169,7 @@ function home() {
       '<button class="primary" onclick="consult()">CONTINUAR</button>'+
     '</div>'
   );
+
   const input=document.getElementById('rut');
   if(input) {
     input.focus();
@@ -137,25 +178,48 @@ function home() {
 }
 
 function consult() {
+  if (consultInProgress) {
+    console.log('GURHUB GITHUB DIAG | CONSULT BLOCKED | duplicate request prevented');
+    return;
+  }
+
   const input=document.getElementById('rut');
   const value=(input?.value || '').trim();
+
   if(!value) {
     error('DEBES INGRESAR TU RUT.');
     return;
   }
 
+  consultInProgress = true;
   currentRut=value;
+
+  console.log(
+    'GURHUB GITHUB DIAG | CONSULT START | rut=' + value +
+    ' | active=' + activeApiRequests
+  );
+
   loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
 
   apiCall('consultarRut',[value],function(err,res) {
+    consultInProgress = false;
+
+    console.log(
+      'GURHUB GITHUB DIAG | CONSULT CALLBACK | rut=' + value +
+      ' | ok=' + (!!res && !!res.ok) +
+      ' | active=' + activeApiRequests
+    );
+
     if(err) {
       error(err.message);
       return;
     }
+
     if(!res || !res.ok) {
       error((res && (res.mensaje || res.message)) || 'No pudimos completar la consulta.');
       return;
     }
+
     currentData=res;
 
     if(res.validadoAnteriormente) {
@@ -277,10 +341,6 @@ function renderReference(res) {
 
 function selectReference(ref) {
   loading('PROCESSING...','CREATING YOUR ACCESS...');
-  /*
-   The GS remains the source of truth for the actual reservation/request.
-   We only call the same backend functions; no client-side recreation of DB logic.
-  */
   apiCall('solicitarAccesoNuevo',[currentRut,currentEmail,ref,''],function(err,res) {
     if(err) { error(err.message); return; }
     if(!res || !res.ok) {
