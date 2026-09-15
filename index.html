@@ -84,19 +84,15 @@ button:disabled{opacity:.5;cursor:wait}
 
 .searchingTitle .dots{display:inline-block;width:24px;text-align:left}
 
-.searchingTitle .dots::after{content:'';animation:searchDots 1.2s steps(4,end) infinite}
+.searchingTitle .dots::after{content:'...';display:inline-block;animation:thinkingDots 1.4s ease-in-out infinite;transform-origin:left center}
 
-@keyframes searchDots{
+@keyframes thinkingDots{
 
-  0%{content:''}
+  0%,100%{content:'.';opacity:.35;transform:scaleX(.72)}
 
-  25%{content:'.'}
+  33%{content:'..';opacity:.65;transform:scaleX(.88)}
 
-  50%{content:'..'}
-
-  75%{content:'...'}
-
-  100%{content:''}
+  66%{content:'...';opacity:1;transform:scaleX(1)}
 
 }
 
@@ -158,6 +154,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyN
 const SESSION = 73;
 
 let currentRut = '';
+let currentDocumentType = 'RUT_CHILE';
 
 let currentEmail = '';
 
@@ -269,37 +266,55 @@ function apiCall(fn, args, done) {
 
 }
 
+function documentLabel_() {
+  return currentDocumentType === 'PASAPORTE' ? 'PASAPORTE' : 'RUT';
+}
+
+function normalizePassportInput_(value) {
+  return String(value || '').toUpperCase().replace(/[\s.\-']/g,'');
+}
+
+function validatePassportInput_(value) {
+  const clean = normalizePassportInput_(value);
+  return /^[A-Z0-9]{5,9}$/.test(clean);
+}
+
 function home() {
+  currentDocumentType = 'RUT_CHILE';
+
   setApp(
     '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
     '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Selecciona tu documento para continuar:</div>'+
     '<label>TIPO DE DOCUMENTO</label>'+
-    '<select id="documentType" autocomplete="off">'+
+    '<select id="documentType">'+
       '<option value="RUT_CHILE" selected>RUT CHILENO</option>'+
       '<option value="PASAPORTE">PASAPORTE</option>'+
     '</select>'+
-    '<label id="documentLabel">RUT CHILENO</label>'+
-    '<input id="rutInput" type="text" placeholder="12.345.678-5" autocomplete="off">'+
+    '<label id="documentLabel">RUT</label>'+
+    '<input id="rutInput" type="text" placeholder="17394729-k" autocomplete="off">'+
     '<button id="go">ENTRAR A LA SESIÓN</button>'+
-    '<div id="documentHelp" class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
+    '<div id="documentHint" class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
   );
 
-  const type = document.getElementById('documentType');
+  const typeSelect = document.getElementById('documentType');
   const input = document.getElementById('rutInput');
   const label = document.getElementById('documentLabel');
-  const help = document.getElementById('documentHelp');
+  const hint = document.getElementById('documentHint');
 
-  function updateDocumentUI(){
-    const passport = type.value === 'PASAPORTE';
-    label.textContent = passport ? 'PASAPORTE' : 'RUT CHILENO';
-    input.placeholder = passport ? 'P12345678' : '12.345.678-5';
-    help.textContent = passport
-      ? 'Ingresa tu número de pasaporte tal como aparece en tu documento.'
-      : 'Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.';
-  }
-
-  type.onchange = updateDocumentUI;
-  updateDocumentUI();
+  typeSelect.onchange = function() {
+    currentDocumentType = this.value;
+    if (currentDocumentType === 'PASAPORTE') {
+      label.textContent = 'PASAPORTE';
+      input.placeholder = 'P12345678';
+      hint.textContent = 'Ingresa el número de tu pasaporte.';
+    } else {
+      label.textContent = 'RUT';
+      input.placeholder = '17394729-k';
+      hint.textContent = 'Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.';
+    }
+    input.value = '';
+    input.focus();
+  };
 
   document.getElementById('go').onclick = consult;
   input.addEventListener('keydown', e => { if(e.key === 'Enter') consult(); });
@@ -410,7 +425,7 @@ function bindReference(data, action) {
 
           renderConditions(data.condiciones)+
 
-          '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu documento de identidad.</strong></div>'+
+          '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu carnet de identidad.</strong></div>'+
 
           '<button class="secondary" onclick="home()">BACK</button>'
 
@@ -480,7 +495,7 @@ function renderExisting(res) {
 
       renderConditions(res.condiciones)+
 
-      '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu documento de identidad.</strong></div>'+
+      '<div class="description"><strong>Para validar tu ingreso en la sesión solo necesitas presentar tu carnet de identidad.</strong></div>'+
 
       '<button class="secondary" onclick="home()">BACK</button>'
 
@@ -498,7 +513,7 @@ function renderExisting(res) {
 
       '<div class="title"><span class="prompt">&gt;</span> CHECKIN</div>'+
 
-      '<div class="status">Tu checkin para la sesión <strong>72</strong> está listo para ser confirmado!</div>'+
+      '<div class="status">Tu checkin para la sesión <strong>73</strong> está listo para ser confirmado!</div>'+
 
       renderReference(data,'reserve')
 
@@ -530,7 +545,7 @@ function renderExisting(res) {
 
 }
 
-function renderNewUserProfile(rut, refs, tipoDocumento) {
+function renderNewUserProfile(rut, refs) {
 
   currentRut = rut;
 
@@ -538,7 +553,7 @@ function renderNewUserProfile(rut, refs, tipoDocumento) {
 
     '<div class="title"><span class="prompt">&gt;</span> VERIFY EMAIL</div>'+
 
-    '<div class="description">Este '+(tipoDocumento === 'PASAPORTE' ? 'pasaporte' : 'RUT')+' todavía no existe en nuestra comunidad.</div>'+
+    '<div class="description">Este '+(currentDocumentType==='PASAPORTE'?'pasaporte':'RUT')+' todavía no existe en nuestra comunidad.</div>'+
 
     '<div class="description">Ingresa tu correo para verificar que pertenece a ti. Te enviaremos un código antes de completar tu ficha.</div>'+
 
@@ -582,7 +597,7 @@ function renderNewUserProfile(rut, refs, tipoDocumento) {
 
       if(r.existe && r.rut && r.rut !== currentRut) {
 
-        return error('ESTE CORREO YA ESTÁ ASOCIADO A OTRO DOCUMENTO.');
+        return error('ESTE CORREO YA ESTÁ ASOCIADO A OTRO RUT.');
 
       }
 
@@ -740,7 +755,7 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 
       const data={
 
-        ok:true,sesion:72,existe:true,rut:currentRut,email:email,nombre:datos.nombre,apellido:datos.apellido,
+        ok:true,sesion:73,existe:true,rut:currentRut,email:email,nombre:datos.nombre,apellido:datos.apellido,
 
         estado:saved.estado || (validadoAnteriormente?'MIEMBRO':'NUEVO'),
 
@@ -764,7 +779,7 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 
           '<div class="title"><span class="prompt">&gt;</span> CHECKIN</div>'+
 
-          '<div class="status">Tu checkin para la sesión <strong>72</strong> está listo para ser confirmado!</div>'+
+          '<div class="status">Tu checkin para la sesión <strong>73</strong> está listo para ser confirmado!</div>'+
 
           renderReference(data,'reserve')
 
@@ -796,47 +811,45 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 
 function consult() {
   const input = document.getElementById('rutInput');
-  const type = document.getElementById('documentType');
   const value = (input && input.value || '').trim();
-  const tipoDocumento = type ? type.value : 'RUT_CHILE';
 
-  if(!value) {
-    return error(
-      tipoDocumento === 'PASAPORTE'
-        ? 'DEBES INGRESAR TU NÚMERO DE PASAPORTE.'
-        : 'DEBES INGRESAR TU RUT.'
-    );
+  if (!value) {
+    return error(currentDocumentType === 'PASAPORTE'
+      ? 'DEBES INGRESAR UN PASAPORTE VÁLIDO.'
+      : 'DEBES INGRESAR TU RUT.');
   }
 
-  if(tipoDocumento === 'PASAPORTE') {
-    const passport = value.toUpperCase().replace(/[.\-\s']/g,'');
-    if(!/^[A-Z0-9]{5,9}$/.test(passport)) {
+  let apiDocumento = value;
+
+  if (currentDocumentType === 'PASAPORTE') {
+    const passport = normalizePassportInput_(value);
+
+    if (!validatePassportInput_(passport)) {
       return error('DEBES INGRESAR UN PASAPORTE VÁLIDO.');
     }
+
+    apiDocumento = 'PAS:' + passport;
   }
 
   loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
 
-  apiCall('consultarDocumento',[tipoDocumento,value],function(err,res) {
+  apiCall('consultarRut',[apiDocumento],function(err,res) {
     if(err) return error(err.message);
-
     if(!res || !res.ok) {
-      return error(
-        res && res.mensaje
-          ? res.mensaje
-          : (tipoDocumento === 'PASAPORTE'
-              ? 'NO SE PUDO CONSULTAR EL PASAPORTE.'
-              : 'NO SE PUDO CONSULTAR EL RUT.')
-      );
+      return error(res && res.mensaje ||
+        (currentDocumentType === 'PASAPORTE'
+          ? 'NO SE PUDO CONSULTAR EL PASAPORTE.'
+          : 'NO SE PUDO CONSULTAR EL RUT.'));
     }
 
-    currentRut = res.rut;
+    currentRut = res.rut || apiDocumento;
+    currentDocumentType = res.tipoDocumento || currentDocumentType;
     currentEmail = res.email || '';
     currentData = res;
 
     if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
     if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
-    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[],tipoDocumento);
+    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
     if(res.reservaActual) return renderExisting(res);
 
     renderExisting(res);
