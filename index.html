@@ -154,7 +154,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyN
 const SESSION = 73;
 
 let currentRut = '';
-let currentDocumentType = 'RUT_CHILE';
 
 let currentEmail = '';
 
@@ -266,59 +265,30 @@ function apiCall(fn, args, done) {
 
 }
 
-function documentLabel_() {
-  return currentDocumentType === 'PASAPORTE' ? 'PASAPORTE' : 'RUT';
-}
-
-function normalizePassportInput_(value) {
-  return String(value || '').toUpperCase().replace(/[\s.\-']/g,'');
-}
-
-function validatePassportInput_(value) {
-  const clean = normalizePassportInput_(value);
-  return /^[A-Z0-9]{5,9}$/.test(clean);
-}
-
 function home() {
-  currentDocumentType = 'RUT_CHILE';
 
-  setApp(
-    '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
-    '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Selecciona tu documento para continuar:</div>'+
-    '<label>TIPO DE DOCUMENTO</label>'+
-    '<select id="documentType">'+
-      '<option value="RUT_CHILE" selected>RUT CHILENO</option>'+
-      '<option value="PASAPORTE">PASAPORTE</option>'+
-    '</select>'+
-    '<label id="documentLabel">RUT</label>'+
-    '<input id="rutInput" type="text" placeholder="17394729-k" autocomplete="off">'+
-    '<button id="go">ENTRAR A LA SESIÓN</button>'+
-    '<div id="documentHint" class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
-  );
+  setApp(
 
-  const typeSelect = document.getElementById('documentType');
-  const input = document.getElementById('rutInput');
-  const label = document.getElementById('documentLabel');
-  const hint = document.getElementById('documentHint');
+    '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
 
-  typeSelect.onchange = function() {
-    currentDocumentType = this.value;
-    if (currentDocumentType === 'PASAPORTE') {
-      label.textContent = 'PASAPORTE';
-      input.placeholder = 'P12345678';
-      hint.textContent = 'Ingresa el número de tu pasaporte.';
-    } else {
-      label.textContent = 'RUT';
-      input.placeholder = '17394729-k';
-      hint.textContent = 'Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.';
-    }
-    input.value = '';
-    input.focus();
-  };
+    '<div class="description">Tu recarga de buena música a media semana comienza aquí!<br><br>Ingresa tu RUT para continuar:</div>'+
 
-  document.getElementById('go').onclick = consult;
-  input.addEventListener('keydown', e => { if(e.key === 'Enter') consult(); });
-  input.focus();
+    '<label>RUT</label>'+
+
+    '<input id="rutInput" type="text" placeholder="17394729-k" autocomplete="off">'+
+
+    '<button id="go">ENTRAR A LA SESIÓN</button>'+
+
+    '<div class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
+
+  );
+
+  document.getElementById('go').onclick = consult;
+
+  document.getElementById('rutInput').addEventListener('keydown', e => { if(e.key === 'Enter') consult(); });
+
+  document.getElementById('rutInput').focus();
+
 }
 
 function renderConditions(list) {
@@ -439,7 +409,7 @@ function bindReference(data, action) {
 
           '<div class="status">¡Tu solicitud fue enviada correctamente!</div>'+
 
-          '<div class="description">Puedes consultar nuevamente el estado de tu solicitud usando tu documento.</div>'+
+          '<div class="description">Puedes consultar nuevamente el estado de tu solicitud usando tu RUT.</div>'+
 
           '<button class="secondary" onclick="home()">BACK</button>'
 
@@ -471,7 +441,7 @@ function renderPendingRequest(res) {
 
     '<div class="status">'+status+'</div>'+
 
-    '<div class="description">Con tu documento puedes consultar siempre el estado de tu solicitud.</div>'+
+    '<div class="description">Con tu RUT puedes consultar siempre el estado de tu solicitud.</div>'+
 
     '<button class="secondary" onclick="home()">BACK</button>'
 
@@ -553,7 +523,7 @@ function renderNewUserProfile(rut, refs) {
 
     '<div class="title"><span class="prompt">&gt;</span> VERIFY EMAIL</div>'+
 
-    '<div class="description">Este '+(currentDocumentType==='PASAPORTE'?'pasaporte':'RUT')+' todavía no existe en nuestra comunidad.</div>'+
+    '<div class="description">Este RUT todavía no existe en nuestra comunidad.</div>'+
 
     '<div class="description">Ingresa tu correo para verificar que pertenece a ti. Te enviaremos un código antes de completar tu ficha.</div>'+
 
@@ -691,7 +661,7 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 
     '<div class="description">'+(validadoAnteriormente
 
-      ? '¡Qué bueno que ya eres parte de ME! ⚡ Completa tus datos una sola vez y sigue siendo parte de nuestra comunidad. Desde ahora podrás hacer check-in cuando quieras, en cualquiera de nuestras sesiones, solo con tu documento.'
+      ? '¡Qué bueno que ya eres parte de ME! ⚡ Completa tus datos una sola vez y sigue siendo parte de nuestra comunidad. Desde ahora podrás hacer check-in cuando quieras, en cualquiera de nuestras sesiones, solo con tu RUT.'
 
       : 'Ahora por favor completa tu ficha de asistente.')+'</div>'+
 
@@ -810,50 +780,37 @@ function renderAssistantProfile(email, refs, validadoAnteriormente) {
 }
 
 function consult() {
-  const input = document.getElementById('rutInput');
-  const value = (input && input.value || '').trim();
 
-  if (!value) {
-    return error(currentDocumentType === 'PASAPORTE'
-      ? 'DEBES INGRESAR UN PASAPORTE VÁLIDO.'
-      : 'DEBES INGRESAR TU RUT.');
-  }
+  const value=(document.getElementById('rutInput').value||'').trim();
 
-  let apiDocumento = value;
+  if(!value) return error('DEBES INGRESAR TU RUT.');
 
-  if (currentDocumentType === 'PASAPORTE') {
-    const passport = normalizePassportInput_(value);
+  loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
 
-    if (!validatePassportInput_(passport)) {
-      return error('DEBES INGRESAR UN PASAPORTE VÁLIDO.');
-    }
+  apiCall('consultarRut',[value],function(err,res) {
 
-    apiDocumento = 'PAS:' + passport;
-  }
+    if(err) return error(err.message);
 
-  loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
+    if(!res || !res.ok) return error(res && res.mensaje || 'NO SE PUDO CONSULTAR EL RUT.');
 
-  apiCall('consultarRut',[apiDocumento],function(err,res) {
-    if(err) return error(err.message);
-    if(!res || !res.ok) {
-      return error(res && res.mensaje ||
-        (currentDocumentType === 'PASAPORTE'
-          ? 'NO SE PUDO CONSULTAR EL PASAPORTE.'
-          : 'NO SE PUDO CONSULTAR EL RUT.'));
-    }
+    currentRut=res.rut;
 
-    currentRut = res.rut || apiDocumento;
-    currentDocumentType = res.tipoDocumento || currentDocumentType;
-    currentEmail = res.email || '';
-    currentData = res;
+    currentEmail=res.email||'';
 
-    if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
-    if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
-    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
-    if(res.reservaActual) return renderExisting(res);
+    currentData=res;
 
-    renderExisting(res);
-  });
+    if(res.validadoAnteriormente && !res.reservaActual) return renderExisting(res);
+
+    if(res.solicitudExiste && !res.reservaActual) return renderPendingRequest(res);
+
+    if(!res.existe) return renderNewUserProfile(res.rut,res.referencias||[]);
+
+    if(res.reservaActual) return renderExisting(res);
+
+    renderExisting(res);
+
+  });
+
 }
 
 home();
