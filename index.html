@@ -34,6 +34,7 @@ button:disabled{opacity:.5;cursor:wait}
 .small{margin-top:14px;color:#666;font-size:9px;line-height:1.7}
 .footer{margin-top:48px;color:#444;font-size:9px;line-height:1.8}
 .searchingTitle{display:inline-block;min-width:110px}
+.waitLine{font-size:12px;line-height:1.7}.waitElapsed{margin-top:6px;color:#666;font-size:9px;letter-spacing:.4px}.status .waitLine strong{font-weight:700}
 .searchingTitle .dots,.processingDots{display:inline-block;width:24px;text-align:left}
 .searchingTitle .dots::after,.processingDots::after{content:'...';display:inline-block;animation:thinkingDots 1.4s ease-in-out infinite;transform-origin:left center}
 @keyframes thinkingDots{0%,100%{content:'.';opacity:.35;transform:scaleX(.72)}33%{content:'..';opacity:.65;transform:scaleX(.88)}66%{content:'...';opacity:1;transform:scaleX(1)}}
@@ -67,7 +68,8 @@ button:disabled{opacity:.5;cursor:wait}
 
 const API_URL='https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyNzqxny24qufWQkymsJ1AAptfY_EFpwaRtNnmeX3l5_EkMww/exec';
 const SESSION=73;
-const API_TIMEOUT_MS=15000;
+const API_TIMEOUT_MS=60000;
+const WAIT_ROTATE_MS=2800;
 
 let currentRut='';
 let currentEmail='';
@@ -88,15 +90,46 @@ function money(v){
 
 function setApp(html){document.getElementById('app').innerHTML=html;}
 
-function loading(title,sub){
-  const animated=title==='SEARCHING...';
+function waitMarkup(message,elapsed){
+  const secs=Math.max(0,Math.floor(elapsed||0));
+  return '<div class="waitLine"><strong>'+esc(message)+'</strong><span class="processingDots"></span></div>'+
+    '<div class="waitElapsed">'+(secs<2?'Un momento, estamos conectando...':'Seguimos trabajando · '+secs+' s')+'</div>';
+}
+
+function loading(title,messages){
+  const list=Array.isArray(messages)&&messages.length?messages:['CONSULTANDO LA COMUNIDAD'];
   setApp(
-    '<div class="title"><span class="prompt">&gt;</span> '+
-    (animated
-      ? '<span class="searchingTitle">SEARCHING<span class="dots"></span></span>'
-      : esc(title))+
-    '</div><div class="status">'+esc(sub)+'</div>'
+    '<div class="title"><span class="prompt">&gt;</span> '+esc(title)+'</div>'+
+    '<div class="status" id="globalWaitStatus">'+waitMarkup(list[0],0)+'</div>'
   );
+}
+
+function startWait(targetId,title,messages){
+  const list=Array.isArray(messages)&&messages.length?messages:['PROCESANDO'];
+  let index=0;
+  const started=Date.now();
+  const target=targetId?document.getElementById(targetId):null;
+  let statusBox=target;
+
+  if(targetId && !statusBox) return function(){};
+  if(targetId){
+    statusBox.innerHTML='<div class="status">'+waitMarkup(list[0],0)+'</div>';
+  }
+
+  function paint(){
+    const elapsed=(Date.now()-started)/1000;
+    index=(index+1)%list.length;
+    if(targetId){
+      const box=document.getElementById(targetId);
+      if(box)box.innerHTML='<div class="status">'+waitMarkup(list[index],elapsed)+'</div>';
+    }else{
+      const box=document.getElementById('globalWaitStatus');
+      if(box)box.innerHTML=waitMarkup(list[index],elapsed);
+    }
+  }
+
+  const timer=setInterval(paint,WAIT_ROTATE_MS);
+  return function(){clearInterval(timer);};
 }
 
 function error(msg){
@@ -110,18 +143,18 @@ function error(msg){
   if(back)back.onclick=home;
 }
 
-// GitHub -> Apps Script: Apps Script web apps do not expose permissive CORS headers
-// for arbitrary fetch() calls, so the stable cross-origin transport here is JSONP.
-// It is still the API endpoint (?api=1), with a unique callback and strict cleanup.
-function apiCall(fn,args){
+function apiCall(fn,args,waitOptions){
   return new Promise(function(resolve,reject){
     const callbackName='meCb_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2);
     const script=document.createElement('script');
     let finished=false;
-    const timer=setTimeout(function(){finish(new Error('La consulta tardó demasiado. Por favor, inténtalo nuevamente.'));},API_TIMEOUT_MS);
+    const wait=waitOptions||{};
+    const stopWait=startWait(wait.targetId||null,wait.title||'PROCESSING',wait.messages||[]);
+    const timer=setTimeout(function(){finish(new Error('La consulta está demorando más de lo esperado. Seguimos intentando conectar con el sistema.'));},API_TIMEOUT_MS);
 
     function cleanup(){
       clearTimeout(timer);
+      stopWait();
       try{delete window[callbackName];}catch(e){window[callbackName]=undefined;}
       if(script.parentNode)script.parentNode.removeChild(script);
     }
@@ -134,7 +167,7 @@ function apiCall(fn,args){
     }
 
     window[callbackName]=function(result){finish(null,result);};
-    script.onerror=function(){finish(new Error('No pudimos completar la consulta en este momento. Por favor, inténtalo nuevamente.'));};
+    script.onerror=function(){finish(new Error('No pudimos completar la conexión con el sistema. Por favor, inténtalo nuevamente.'));};
 
     const params=new URLSearchParams();
     params.set('api','1');
@@ -148,8 +181,8 @@ function apiCall(fn,args){
   });
 }
 
-async function callLatest(fn,args,seq){
-  const result=await apiCall(fn,args);
+async function callLatest(fn,args,seq,waitOptions){
+  const result=await apiCall(fn,args,waitOptions);
   if(seq!==requestSeq)throw new Error('REQUEST_SUPERSEDED');
   return result;
 }
@@ -187,6 +220,7 @@ function renderReference(data,action){
       return '<option value="'+esc(r)+'">'+esc(r)+'</option>';
     }).join('')+'</select>'+
     '<div id="otroBox" style="display:none"><label>¿QUIÉN?</label><input id="otro" type="text" placeholder="Escribe el nombre"></div>'+
+    '<div id="actionStatus"></div>'+
     '<button id="actionBtn">'+(action==='reserve'?'FINALIZAR MI CHECKIN':'CONFIRMAR SOLICITUD')+'</button>';
 }
 
@@ -221,7 +255,7 @@ function bindReference(data,action){
     try{
       let r;
       if(action==='reserve'){
-        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro]);
+        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'CONFIRMING CHECKIN',messages:['REGISTERING YOUR CHECKIN','SAVING YOUR SESSION 73 ACCESS','CONFIRMING YOUR RESERVATION','ALMOST THERE']});
       }else if(action==='newRequest'){
         const p=data.perfil||{};
         const profileData={
@@ -234,9 +268,9 @@ function bindReference(data,action){
           instagram:p.instagram||data.instagram||'',
           telefono:p.telefono||data.telefono||''
         };
-        r=await apiCall('solicitarAccesoNuevo',[profileData,referencia,otro]);
+        r=await apiCall('solicitarAccesoNuevo',[profileData,referencia,otro],{targetId:'actionStatus',title:'SENDING REQUEST',messages:['PREPARING YOUR ACCESS REQUEST','SAVING YOUR REQUEST','CONFIRMING THE INFORMATION','ALMOST THERE']});
       }else{
-        r=await apiCall('solicitarAcceso',[currentRut,currentEmail,referencia,otro]);
+        r=await apiCall('solicitarAcceso',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'SENDING REQUEST',messages:['PREPARING YOUR ACCESS REQUEST','SAVING YOUR REQUEST','CONFIRMING THE INFORMATION','ALMOST THERE']});
       }
 
       if(!r||!r.ok){
@@ -357,7 +391,7 @@ function renderNewUserProfile(rut,refs){
     btn.textContent='CONSULTANDO...';
 
     try{
-      const member=await apiCall('consultarEmail',[email]);
+      const member=await apiCall('consultarEmail',[email],{targetId:'newUserEmailStatus',title:'VERIFYING EMAIL',messages:['CHECKING YOUR EMAIL','VERIFYING COMMUNITY RECORDS','MAKING SURE EVERYTHING MATCHES','ALMOST THERE']});
       if(!member||!member.ok)throw new Error('NO SE PUDO CONSULTAR LA COMUNIDAD.');
 
       if(member.existe&&member.tieneRut){
@@ -371,7 +405,7 @@ function renderNewUserProfile(rut,refs){
 
       // Se conserva esta validación de solicitudes por correo como barrera de
       // consistencia para registros que aún no existen en COMUNIDAD.
-      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut]);
+      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],{targetId:'newUserEmailStatus',title:'CHECKING REQUESTS',messages:['CHECKING PREVIOUS REQUESTS','VERIFYING SESSION 73 STATUS','CHECKING YOUR ACCESS RECORD','ALMOST THERE']});
       if(!existingRequest||!existingRequest.ok)throw new Error(existingRequest&&existingRequest.mensaje?existingRequest.mensaje:'NO SE PUDO CONSULTAR LAS SOLICITUDES.');
 
       if(existingRequest.solicitudExiste){
@@ -388,7 +422,7 @@ function renderNewUserProfile(rut,refs){
 
       currentEmail=email;
       btn.textContent='ENVIANDO...';
-      const sent=await apiCall('enviarCodigo',[email]);
+      const sent=await apiCall('enviarCodigo',[email],{targetId:'newUserEmailStatus',title:'SENDING CODE',messages:['PREPARING YOUR VERIFICATION CODE','SENDING THE CODE TO YOUR EMAIL','WAITING FOR THE EMAIL SERVICE','ALMOST THERE']});
       if(!sent||!sent.ok)throw new Error(sent&&sent.mensaje?sent.mensaje:'NO SE PUDO ENVIAR EL CÓDIGO.');
 
       actionBusy=false;
@@ -432,7 +466,7 @@ function renderVerifyCode(refs,validadoAnteriormente){
     btn.disabled=true;
     btn.textContent='VALIDANDO...';
     try{
-      const r=await apiCall('verificarCodigo',[currentEmail,code]);
+      const r=await apiCall('verificarCodigo',[currentEmail,code],{targetId:'verifyStatus',title:'VALIDATING CODE',messages:['CHECKING THE CODE','VERIFYING EMAIL OWNERSHIP','CONFIRMING YOUR ACCESS','ALMOST THERE']});
       if(!r||!r.ok)throw new Error(r&&r.mensaje?r.mensaje:'CÓDIGO INCORRECTO O EXPIRADO.');
       actionBusy=false;
       // No segunda consulta a COMUNIDAD: consultarEmail() ya entregó
@@ -490,7 +524,7 @@ function renderAssistantProfile(email,refs,validadoAnteriormente){
     saveBtn.textContent='GUARDANDO FICHA...';
 
     try{
-      const saved=await apiCall('saveNewProfile',[datos]);
+      const saved=await apiCall('saveNewProfile',[datos],{targetId:'profileStatus',title:'SAVING PROFILE',messages:['SAVING YOUR COMMUNITY PROFILE','CHECKING YOUR INFORMATION','SECURING YOUR RECORD','ALMOST THERE']});
       if(!saved||!saved.ok)throw new Error(saved&&saved.mensaje?saved.mensaje:'NO SE PUDO GUARDAR LA FICHA.');
 
       actionBusy=false;
@@ -547,10 +581,12 @@ async function consult(){
 
   actionBusy=true;
   const seq=++requestSeq;
-  loading('SEARCHING...','CHECKING COMMUNITY HISTORY...');
-
   try{
-    const res=await callLatest('consultarRut',[value],seq);
+    loading('SEARCHING...',['CHECKING COMMUNITY HISTORY','CONNECTING WITH THE COMMUNITY','RETRIEVING YOUR SESSION STATUS','ALMOST THERE']);
+    const res=await callLatest('consultarRut',[value],seq,{
+      title:'SEARCHING',
+      messages:['CHECKING COMMUNITY HISTORY','CONNECTING WITH THE COMMUNITY','RETRIEVING YOUR SESSION STATUS','ALMOST THERE']
+    });
     actionBusy=false;
 
     if(!res||!res.ok)return error(res&&res.mensaje?res.mensaje:'NO SE PUDO CONSULTAR EL RUT.');
