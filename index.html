@@ -93,6 +93,43 @@ function money(v){
   return n===0?'GRATIS':'$'+n.toLocaleString('es-CL');
 }
 
+function validRutFront_(value){
+  const clean=String(value==null?'':value)
+    .toUpperCase()
+    .replace(/[.\-\s']/g,'');
+
+  if(!/^\d+[0-9K]$/.test(clean))return false;
+
+  const body=clean.slice(0,-1);
+  const dv=clean.slice(-1);
+
+  if(!/^\d{7,8}$/.test(body))return false;
+
+  let sum=0;
+  let mult=2;
+
+  for(let i=body.length-1;i>=0;i--){
+    sum+=Number(body.charAt(i))*mult;
+    mult=mult===7?2:mult+1;
+  }
+
+  const result=11-(sum%11);
+  const expected=result===11?'0':result===10?'K':String(result);
+
+  return dv===expected;
+}
+
+function showRutValidationError(){
+  actionBusy=false;
+  setApp(
+    '<div class="title"><span class="prompt">&gt;</span> RUT NO VÁLIDO</div>'+
+    '<div class="status error">EL RUT INGRESADO NO ES VÁLIDO.</div>'+
+    '<button class="secondary" id="backBtn">BACK</button>'
+  );
+  const back=document.getElementById('backBtn');
+  if(back)back.onclick=home;
+}
+
 function setApp(html){document.getElementById('app').innerHTML=html;}
 
 function waitMarkup(message,elapsed){
@@ -150,7 +187,9 @@ function error(msg){
 
 function apiCall(fn,args,waitOptions){
   return new Promise(function(resolve,reject){
+    const perfStart=performance.now();
     const callbackName='meCb_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2);
+    console.log('[ME PERF] START',fn,Math.round(perfStart));
     const script=document.createElement('script');
     let finished=false;
     const wait=waitOptions||{};
@@ -166,13 +205,23 @@ function apiCall(fn,args,waitOptions){
 
     function finish(err,result){
       if(finished)return;
+      console.log('[ME PERF] FINISH',fn,err?'ERROR':'OK',Math.round(performance.now()-perfStart)+' ms');
       finished=true;
       cleanup();
       if(err)reject(err); else resolve(result);
     }
 
-    window[callbackName]=function(result){finish(null,result);};
-    script.onerror=function(){finish(new Error('No pudimos completar la conexión con el sistema. Por favor, inténtalo nuevamente.'));};
+    window[callbackName]=function(result){
+      console.log('[ME PERF] CALLBACK',fn,Math.round(performance.now()-perfStart)+' ms');
+      finish(null,result);
+    };
+    script.onload=function(){
+      console.log('[ME PERF] SCRIPT LOAD',fn,Math.round(performance.now()-perfStart)+' ms');
+    };
+    script.onerror=function(e){
+      console.error('[ME PERF] SCRIPT ERROR',fn,Math.round(performance.now()-perfStart)+' ms',e);
+      finish(new Error('No pudimos completar la conexión con el sistema. Por favor, inténtalo nuevamente.'));
+    };
 
     const params=new URLSearchParams();
     params.set('api','1');
@@ -182,7 +231,9 @@ function apiCall(fn,args,waitOptions){
     params.set('_',String(Date.now()));
     script.async=true;
     script.src=API_URL+'?'+params.toString();
+    console.log('[ME PERF] SENT',fn,new Date().toISOString());
     document.head.appendChild(script);
+    console.log('[ME PERF] APPENDED',fn,Math.round(performance.now()-perfStart)+' ms');
   });
 }
 
@@ -583,6 +634,12 @@ async function consult(){
   const input=document.getElementById('rutInput');
   const value=input?input.value.trim():'';
   if(!value)return error('DEBES INGRESAR TU RUT.');
+
+  if(!validRutFront_(value)){
+    showRutValidationError();
+    return;
+  }
+
   actionBusy=true;
   const seq=++requestSeq;
   try{
