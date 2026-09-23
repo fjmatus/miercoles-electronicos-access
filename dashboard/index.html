@@ -43,7 +43,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 <div class="wrap">
   <div class="header">
     <div><div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div><div class="statusLine"><span class="dot" id="liveDot"></span><span id="updated">Cargando datos...</span></div></div>
-    <div class="session">DASHBOARD · SESSION 073<br>REVELION: LA PARTIDA</div>
+    <div class="session">DASHBOARD · SESSION 074<br>BACK TO THE HOUSE</div>
   </div>
 
   <div class="kpis">
@@ -112,20 +112,20 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
     <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
   </section>
   <section class="section">
-    <div class="sectionTitle">REVELION: LA PARTIDA VS SESSION 072 · COMPARACIÓN ACUMULADA</div>
+    <div class="sectionTitle">BACK TO THE HOUSE VS SESSION 073 · COMPARACIÓN ACUMULADA</div>
     <div class="grid2">
-      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S73 VS S72</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
-      <div class="chartPanel"><div class="panelTitle">INGRESOS · S73 VS S72</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S74 VS S73</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">INGRESOS · S74 VS S73</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
     </div>
     <div class="panel" style="margin-top:12px;overflow-x:auto">
       <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12px">
-        <thead><tr><th>Hora</th><th>Check-in S73</th><th>Check-in S72</th><th>Var. Check-in</th><th>$ S73</th><th>$ S72</th><th>Var. $</th></tr></thead>
+        <thead><tr><th>Hora</th><th>Check-in S74</th><th>Check-in S73</th><th>Var. Check-in</th><th>$ S74</th><th>$ S73</th><th>Var. $</th></tr></thead>
         <tbody id="comparisonBody"></tbody>
       </table>
     </div>
   </section>
 
-  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 073</div>
+  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 074</div>
 </div>
 
 <script>
@@ -290,8 +290,8 @@ function drawComparison(c){
  if(comparisonCheckinsChart) comparisonCheckinsChart.destroy();
  comparisonCheckinsChart=new Chart(document.getElementById('comparisonCheckinsChart'),{
    type:'line',data:{labels:labels,datasets:[
-    {label:'Sesión 72',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
-    {label:'Sesión 71',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+    {label:'Sesión 74',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+    {label:'Sesión 73',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
    scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,ticks:{color:'#777'},grid:{color:'#1d1d1d'}}}}
  });
@@ -299,8 +299,8 @@ function drawComparison(c){
  if(comparisonMoneyChart) comparisonMoneyChart.destroy();
  comparisonMoneyChart=new Chart(document.getElementById('comparisonMoneyChart'),{
    type:'line',data:{labels:labels,datasets:[
-    {label:'Sesión 72',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
-    {label:'Sesión 71',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+    {label:'Sesión 74',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+    {label:'Sesión 73',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
    scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,ticks:{color:'#777',callback:function(v){return money(v)}},grid:{color:'#1d1d1d'}}}}
  });
