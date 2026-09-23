@@ -42,17 +42,17 @@ button{width:100%;margin-top:12px;padding:15px 16px;border:0;font:inherit;font-w
 <div class="wrap">
 <div class="header">
 <div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div>
-<div class="session">CHECK-IN · SESSION_073 // CHECK-IN</div>
+<div class="session">CHECK-IN · SESSION_074 // BACK TO THE HOUSE</div>
 </div>
 <div class="line"></div>
 <main id="app"></main>
-<div class="footer">ACCESS CONTROL // 2026<br>SESSION_073</div>
+<div class="footer">ACCESS CONTROL // 2026<br>SESSION_074</div>
 </div>
 <script>
 const CONFIG={
   BACKEND_URL:'https://script.google.com/macros/s/AKfycbyybZ2k81TKzFPjV4csT2PbRVxPE00IYY709w5HSrhEZfhxgjIRHpEUS2kNw73lfphu/exec',
-  SESSION:73,
-  SESSION_NAME:'SESION 73',
+  SESSION:74,
+  SESSION_NAME:'BACK TO THE HOUSE',
   PUBLIC_URL:'https://miercoleselectronicos.com/'
 };
 let scanner=null, scanning=false, currentRut='', scanIso='';
@@ -173,15 +173,15 @@ function personCard(r){return '<div class="card"><div class="grid">'+field('NOMB
 function conditions(list){if(!Array.isArray(list)||!list.length)return '';return '<div class="card"><div class="label">HORARIOS Y PRECIO</div>'+list.map(t=>'<div class="slot"><span>'+esc(t.desde)+' — '+esc(t.hasta)+'</span><span class="money">'+money(t.valor)+'</span></div>').join('')+'</div>'}
 
 function renderResult(r){
- if(r.resultado==='YA_CHECKIN'){show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN YA REALIZADO</div>'+personCard(r)+'<div class="status warn">ESTE RUT YA TIENE UN INGRESO REGISTRADO PARA LA SESIÓN 73.<br><br>HORA: <strong>'+esc(r.horaCheckin||'—')+'</strong></div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='YA_CHECKIN'){show('<div class="title"><span class="prompt">&gt;</span> CHECK-IN YA REALIZADO</div>'+personCard(r)+'<div class="status warn">ESTE RUT YA TIENE UN INGRESO REGISTRADO PARA LA SESIÓN 74.<br><br>HORA: <strong>'+esc(r.horaCheckin||'—')+'</strong></div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
  if(r.resultado==='PUEDE_VALIDAR'){show('<div class="title"><span class="prompt">&gt;</span> ACCESO DISPONIBLE</div>'+personCard(r)+
  '<div class="card"><div class="grid">'+field('TIPO DE ACCESO',r.tipoAcceso)+field('RESERVA',r.estadoReserva||'CONFIRMADA')+field('REFERENCIA',r.invitadoPor)+field('VALOR EN PUERTA',money(r.valorEstimadoIngreso!=null?r.valorEstimadoIngreso:0))+'</div></div>'+
  conditions(r.condiciones)+'<div class="status">RESERVA CONFIRMADA.<br>LA ANFITRIONA PUEDE VALIDAR EL ACCESO.</div><button class="primary" id="validateBtn" onclick="validateAccess()">VALIDAR ACCESO</button><button class="secondary" onclick="home()">CANCELAR</button>');return}
- if(r.resultado==='SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> MIEMBRO SIN RESERVA</div>'+personCard(r)+'<div class="status warn">ESTA PERSONA ESTÁ EN LA COMUNIDAD, PERO NO TIENE RESERVA PARA LA SESIÓN 73.</div><div class="sub">EL ASISTENTE DEBE HACER SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
- if(r.resultado==='SOLICITUD_PENDIENTE'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD PENDIENTE</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD PARA LA SESIÓN 73 TODAVÍA ESTÁ PENDIENTE DE APROBACIÓN.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
- if(r.resultado==='SOLICITUD_NO_APROBADA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD NO APROBADA</div>'+personCard(r)+'<div class="status error">LA SOLICITUD PARA LA SESIÓN 73 NO FUE APROBADA.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
- if(r.resultado==='SOLICITUD_APROBADA_SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD APROBADA</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD FUE APROBADA, PERO TODAVÍA NO EXISTE UNA RESERVA VÁLIDA PARA LA SESIÓN 73.</div><div class="sub">EL ASISTENTE DEBE COMPLETAR SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
- show('<div class="title"><span class="prompt">&gt;</span> PERSONA NO REGISTRADA</div><div class="card"><div class="grid">'+field('RUT',r.rut)+field('ESTADO','NO EN COMUNIDAD')+'</div></div><div class="status neutral">NO EXISTE UNA SOLICITUD DE ACCESO PARA LA SESIÓN 73.</div><div class="sub">LA ANFITRIONA NO CREA LA SOLICITUD. LA PERSONA DEBE SOLICITAR ACCESO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>')
+ if(r.resultado==='SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> MIEMBRO SIN RESERVA</div>'+personCard(r)+'<div class="status warn">ESTA PERSONA ESTÁ EN LA COMUNIDAD, PERO NO TIENE RESERVA PARA LA SESIÓN 74.</div><div class="sub">EL ASISTENTE DEBE HACER SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_PENDIENTE'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD PENDIENTE</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD PARA LA SESIÓN 74 TODAVÍA ESTÁ PENDIENTE DE APROBACIÓN.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_NO_APROBADA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD NO APROBADA</div>'+personCard(r)+'<div class="status error">LA SOLICITUD PARA LA SESIÓN 74 NO FUE APROBADA.</div><div class="sub">NO ES POSIBLE VALIDAR EL ACCESO.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ if(r.resultado==='SOLICITUD_APROBADA_SIN_RESERVA'){show('<div class="title"><span class="prompt">&gt;</span> SOLICITUD APROBADA</div>'+personCard(r)+'<div class="status warn">LA SOLICITUD FUE APROBADA, PERO TODAVÍA NO EXISTE UNA RESERVA VÁLIDA PARA LA SESIÓN 74.</div><div class="sub">EL ASISTENTE DEBE COMPLETAR SU RESERVA DESDE SU PROPIO TELÉFONO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>');return}
+ show('<div class="title"><span class="prompt">&gt;</span> PERSONA NO REGISTRADA</div><div class="card"><div class="grid">'+field('RUT',r.rut)+field('ESTADO','NO EN COMUNIDAD')+'</div></div><div class="status neutral">NO EXISTE UNA SOLICITUD DE ACCESO PARA LA SESIÓN 74.</div><div class="sub">LA ANFITRIONA NO CREA LA SOLICITUD. LA PERSONA DEBE SOLICITAR ACCESO EN <strong>miercoleselectronicos.com</strong>.</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>')
 }
 
 function validateAccess(){
@@ -189,7 +189,7 @@ function validateAccess(){
  api('registrarCheckIn',[currentRut,scanIso,'ANFITRIONA'],(err,res)=>{
   if(err){if(b){b.disabled=false;b.textContent='VALIDAR ACCESO'}return errorScreen(err.message)}
   if(!res||!res.ok){if(b){b.disabled=false;b.textContent='VALIDAR ACCESO'}return errorScreen(res&&res.mensaje?res.mensaje:'NO SE PUDO REGISTRAR EL CHECK-IN.')}
-  show('<div class="title"><span class="prompt">&gt;</span> ACCESO VALIDADO</div><div class="card"><div class="grid">'+field('NOMBRE',(res.nombre||'')+' '+(res.apellido||''))+field('SESIÓN','073 · '+CONFIG.SESSION_NAME)+field('TIPO DE ACCESO',res.tipoAcceso)+field('RUT',res.rut)+'</div></div><div class="bigok">✓ PUEDE INGRESAR</div><div class="status">CHECK-IN REGISTRADO: <strong>'+esc(res.horaCheckin||'—')+'</strong></div><button class="primary" onclick="home()">NUEVO ESCANEO</button>')
+  show('<div class="title"><span class="prompt">&gt;</span> ACCESO VALIDADO</div><div class="card"><div class="grid">'+field('NOMBRE',(res.nombre||'')+' '+(res.apellido||''))+field('SESIÓN','074 · '+CONFIG.SESSION_NAME)+field('TIPO DE ACCESO',res.tipoAcceso)+field('RUT',res.rut)+'</div></div><div class="bigok">✓ PUEDE INGRESAR</div><div class="status">CHECK-IN REGISTRADO: <strong>'+esc(res.horaCheckin||'—')+'</strong></div><button class="primary" onclick="home()">NUEVO ESCANEO</button>')
  })
 }
 function errorScreen(msg){show('<div class="title"><span class="prompt">&gt;</span> ERROR</div><div class="status error">'+esc(msg)+'</div><button class="secondary" onclick="home()">NUEVO ESCANEO</button>')}
