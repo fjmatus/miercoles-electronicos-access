@@ -527,6 +527,31 @@ function renderCheckinSummary(data){
 
 }
 
+function sendCheckinEmailInBackground_(rut,email){
+  if(!rut||!email)return;
+  try{
+    apiCall(
+      'enviarConfirmacionCheckin',
+      [rut,email],
+      {
+        title:'SENDING CONFIRMATION',
+        messages:[
+          'PREPARING YOUR CONFIRMATION EMAIL',
+          'SENDING YOUR CHECK-IN EMAIL',
+          'CONFIRMING YOUR EMAIL DELIVERY',
+          'ALMOST THERE'
+        ]
+      }
+    ).then(function(r){
+      console.log('[ME EMAIL] CONFIRMATION',r&&r.ok?'OK':'ERROR',r||null);
+    }).catch(function(e){
+      console.warn('[ME EMAIL] CONFIRMATION FAILED',e&&e.message?e.message:e);
+    });
+  }catch(e){
+    console.warn('[ME EMAIL] CONFIRMATION EXCEPTION',e);
+  }
+}
+
 function bindReference(data,action){
 
   const ref=document.getElementById('ref');
@@ -659,6 +684,12 @@ function bindReference(data,action){
       const back=document.getElementById('backBtn');
 
       if(back)back.onclick=home;
+
+      // En reservas de miembro, el correo se dispara después de confirmar
+      // visualmente el check-in, sin bloquear la respuesta principal.
+      if(action==='reserve'){
+        sendCheckinEmailInBackground_(currentRut,currentEmail);
+      }
 
     }catch(e){
 
