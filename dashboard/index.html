@@ -108,6 +108,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   </section>
 
   <section class="section">
+    <div class="sectionTitle">VRAVA COMO REFERENCIA · % DE RESERVAS · SESIONES 71—74</div>
+    <div class="chartPanel"><div class="chartWrap"><canvas id="vravaHistoryChart"></canvas></div></div>
+  </section>
+
+  <section class="section">
     <div class="sectionTitle">ASISTENTES CADA 30 MINUTOS · 19:00—02:00</div>
     <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
   </section>
@@ -130,7 +135,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 
 <script>
 const CONFIG={BACKEND_URL:'https://script.google.com/macros/s/AKfycbzeKp4G6h7h77R5FygELwFZutMNBvAtdBI4-Exh6w6PCbl33QPP0BS6_7TQQJJnVwFLcg/exec'};
-let chart=null, reservationRefChart=null, comparisonCheckinsChart=null, comparisonMoneyChart=null;
+let chart=null, reservationRefChart=null, vravaHistoryChart=null, comparisonCheckinsChart=null, comparisonMoneyChart=null;
 function money(v){return '$'+Number(v||0).toLocaleString('es-CL');}
 function pct(v){return Number(v||0).toLocaleString('es-CL',{maximumFractionDigits:1})+'%';}
 function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -220,7 +225,64 @@ function render(d){
     '</tr>';
 }).join('')||'<tr><td colspan="13">Sin datos</td></tr>';
  drawChart(d.flujo30min||[]);
+ drawVravaHistoryChart(d.referenciaHistorica||[]);
  drawComparison(d.comparacionSesionAnterior||{});
+}
+
+function drawVravaHistoryChart(rows){
+ const ctx=document.getElementById('vravaHistoryChart');
+ if(!ctx)return;
+ if(vravaHistoryChart)vravaHistoryChart.destroy();
+ const data=(rows||[]).map(x=>({
+   sesion:Number(x.sesion||0),
+   vrava:Number(x.vrava||0),
+   total:Number(x.total||0),
+   pct:Number(x.pct||0)
+ })).filter(x=>x.sesion);
+ vravaHistoryChart=new Chart(ctx,{
+   type:'bar',
+   data:{
+     labels:data.map(x=>'S'+String(x.sesion)),
+     datasets:[{
+       label:'VRAVA',
+       data:data.map(x=>x.pct),
+       borderWidth:1,
+       borderRadius:4,
+       maxBarThickness:70
+     }]
+   },
+   options:{
+     responsive:true,
+     maintainAspectRatio:false,
+     plugins:{
+       legend:{display:false},
+       tooltip:{
+         callbacks:{
+           label:function(item){
+             const x=data[item.dataIndex];
+             return ' '+x.pct.toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'% ('+
+               x.vrava.toLocaleString('es-CL')+' de '+x.total.toLocaleString('es-CL')+' reservas)';
+           }
+         }
+       }
+     },
+     scales:{
+       x:{
+         ticks:{color:'#777'},
+         grid:{color:'#1d1d1d'}
+       },
+       y:{
+         beginAtZero:true,
+         suggestedMax:Math.max(10, Math.ceil(Math.max.apply(null,data.map(x=>x.pct).concat([0]))/10)*10),
+         ticks:{
+           color:'#777',
+           callback:function(v){return Number(v).toLocaleString('es-CL',{maximumFractionDigits:0})+'%'}
+         },
+         grid:{color:'#1d1d1d'}
+       }
+     }
+   }
+ });
 }
 function drawReservationRefChart(rows){
  const ctx=document.getElementById('reservationRefChart');
