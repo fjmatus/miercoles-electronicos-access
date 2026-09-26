@@ -28,7 +28,9 @@ body{padding:0 20px}
 
 .system{color:var(--muted);font-size:10px;letter-spacing:1.5px;margin-bottom:22px}
 
-.logo{display:block;width:290px;max-width:100%;height:auto;margin:0}
+.brandRow{display:flex;align-items:center;gap:22px;width:100%}
+.logo{display:block;width:290px;max-width:58%;height:auto;margin:0;flex:0 1 290px}
+.sessionArt{display:block;width:390px;max-width:42%;height:auto;margin:0;flex:1 1 auto;object-fit:contain}
 
 .session{margin-top:14px;color:var(--muted);font-size:10px;letter-spacing:1px}
 
@@ -119,15 +121,18 @@ button:disabled{opacity:.5;cursor:wait}
 
   <div class="system">ME // COMMUNITY ACCESS SYSTEM</div>
 
-  <img class="logo" src="me-logo.png" alt="Miércoles Electrónicos">
+  <div class="brandRow">
+    <img class="logo" src="me-logo.png" alt="Miércoles Electrónicos">
+    <img class="sessionArt" src="session75_art.png" alt="">
+  </div>
 
-  <div class="session">SESSION_074 // SESION_74</div>
+  <div class="session">SESSION_075 // SESION_LXXV</div>
 
   <div class="line"></div>
 
   <div id="app"></div>
 
-  <div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_074 // ACCESS CONTROL</div>
+  <div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_075 // ACCESS CONTROL</div>
 
 <div class="heartMark" aria-hidden="true">
 
@@ -143,7 +148,7 @@ button:disabled{opacity:.5;cursor:wait}
 
 const API_URL='https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyNzqxny24qufWQkymsJ1AAptfY_EFpwaRtNnmeX3l5_EkMww/exec';
 
-const SESSION=74;
+const SESSION=75;
 
 const API_TIMEOUT_MS=60000;
 
@@ -566,7 +571,7 @@ function bindReference(data,action){
 
       if(action==='reserve'){
 
-        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'CONFIRMING CHECKIN',messages:['REGISTERING YOUR CHECKIN','SAVING YOUR SESSION 74 ACCESS','CONFIRMING YOUR RESERVATION','ALMOST THERE']});
+        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'CONFIRMING CHECKIN',messages:['REGISTERING YOUR CHECKIN','SAVING YOUR SESSION 75 ACCESS','CONFIRMING YOUR RESERVATION','ALMOST THERE']});
 
       }else if(action==='newRequest'){
 
@@ -845,7 +850,7 @@ function renderNewUserProfile(rut,refs){
 
       // consistencia para registros que aún no existen en COMUNIDAD.
 
-      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],{targetId:'newUserEmailStatus',title:'CHECKING REQUESTS',messages:['CHECKING PREVIOUS REQUESTS','VERIFYING SESSION 74 STATUS','CHECKING YOUR ACCESS RECORD','ALMOST THERE']});
+      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],{targetId:'newUserEmailStatus',title:'CHECKING REQUESTS',messages:['CHECKING PREVIOUS REQUESTS','VERIFYING SESSION 75 STATUS','CHECKING YOUR ACCESS RECORD','ALMOST THERE']});
 
       if(!existingRequest||!existingRequest.ok)throw new Error(existingRequest&&existingRequest.mensaje?existingRequest.mensaje:'NO SE PUDO CONSULTAR LAS SOLICITUDES.');
 
