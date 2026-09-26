@@ -43,7 +43,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 <div class="wrap">
   <div class="header">
     <div><div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div><div class="statusLine"><span class="dot" id="liveDot"></span><span id="updated">Cargando datos...</span></div></div>
-    <div class="session">DASHBOARD · SESSION 074<br>BACK TO THE HOUSE</div>
+    <div class="session">DASHBOARD · SESSION 075<br>FULL BOILER 360</div>
   </div>
 
   <div class="kpis">
@@ -108,7 +108,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   </section>
 
   <section class="section">
-    <div class="sectionTitle">VRAVA COMO REFERENCIA · % RESERVAS Y % CHECK-IN · SESIONES 71—74</div>
+    <div class="sectionTitle">VRAVA COMO REFERENCIA · % RESERVAS Y % CHECK-IN · SESIONES 71—75</div>
     <div class="chartPanel"><div class="chartWrap"><canvas id="vravaHistoryChart"></canvas></div></div>
   </section>
 
@@ -117,20 +117,20 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
     <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
   </section>
   <section class="section">
-    <div class="sectionTitle">BACK TO THE HOUSE VS SESSION 073 · COMPARACIÓN ACUMULADA</div>
+    <div class="sectionTitle">SESSION 075 VS MEJOR CURVA S71—S74 · COMPARACIÓN ACUMULADA</div>
     <div class="grid2">
-      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S74 VS S73</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
-      <div class="chartPanel"><div class="panelTitle">INGRESOS · S74 VS S73</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S75 VS MEJOR S71—S74</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">INGRESOS · S75 VS MEJOR S71—S74</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
     </div>
     <div class="panel" style="margin-top:12px;overflow-x:auto">
       <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12px">
-        <thead><tr><th>Hora</th><th>Check-in S74</th><th>Check-in S73</th><th>Var. Check-in</th><th>$ S74</th><th>$ S73</th><th>Var. $</th></tr></thead>
+        <thead><tr><th>Hora</th><th>Check-in S75</th><th>Mejor S71—S74</th><th>Var. Check-in</th><th>$ S75</th><th>$ Mejor S71—S74</th><th>Var. $</th></tr></thead>
         <tbody id="comparisonBody"></tbody>
       </table>
     </div>
   </section>
 
-  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 074</div>
+  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 075</div>
 </div>
 
 <script>
@@ -226,7 +226,7 @@ function render(d){
 }).join('')||'<tr><td colspan="13">Sin datos</td></tr>';
  drawChart(d.flujo30min||[]);
  drawVravaHistoryChart(d.referenciaHistorica||[]);
- drawComparison(d.comparacionSesionAnterior||{});
+ drawComparison(d.comparacionMejorHistorica||{});
 }
 
 function drawVravaHistoryChart(rows){
@@ -386,35 +386,38 @@ function signedPct(v){
  return (n>0?'+':'')+n.toLocaleString('es-CL',{maximumFractionDigits:1})+'%';
 }
 function drawComparison(c){
- const points=c.puntos||[], body=document.getElementById('comparisonBody');
- if(body) body.innerHTML=points.map(p=>'<tr>'+
-   '<td>'+esc(p.label)+'</td>'+
-   '<td style="text-align:right">'+Number(p.checkinsActual||0)+'</td>'+
-   '<td style="text-align:right">'+Number(p.checkinsAnterior||0)+'</td>'+
-   '<td style="text-align:right;font-weight:900">'+signedPct(p.checkinsPct)+'</td>'+
-   '<td style="text-align:right">'+money(p.ingresosActual)+'</td>'+
-   '<td style="text-align:right">'+money(p.ingresosAnterior)+'</td>'+
-   '<td style="text-align:right;font-weight:900">'+signedPct(p.ingresosPct)+'</td>'+
-   '</tr>').join('')||'<tr><td colspan="7">Sin datos</td></tr>';
+  const points=c.puntos||[], body=document.getElementById('comparisonBody');
+  const benchmark='S'+String(c.sesionBenchmark||'—');
 
- const labels=points.map(p=>p.label);
- if(comparisonCheckinsChart) comparisonCheckinsChart.destroy();
- comparisonCheckinsChart=new Chart(document.getElementById('comparisonCheckinsChart'),{
-   type:'line',data:{labels:labels,datasets:[
-    {label:'Sesión 74',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
-    {label:'Sesión 73',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
-   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
-   scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,ticks:{color:'#777'},grid:{color:'#1d1d1d'}}}}
- });
+  if(body) body.innerHTML=points.map(p=>'<tr>'+
+    '<td>'+esc(p.label)+'</td>'+
+    '<td style="text-align:right">'+Number(p.checkinsActual||0)+'</td>'+
+    '<td style="text-align:right">'+Number(p.checkinsAnterior||0)+'</td>'+
+    '<td style="text-align:right;font-weight:900">'+signedPct(p.checkinsPct)+'</td>'+
+    '<td style="text-align:right">'+money(p.ingresosActual)+'</td>'+
+    '<td style="text-align:right">'+money(p.ingresosAnterior)+'</td>'+
+    '<td style="text-align:right;font-weight:900">'+signedPct(p.ingresosPct)+'</td>'+
+    '</tr>').join('')||'<tr><td colspan="7">Sin datos</td></tr>';
 
- if(comparisonMoneyChart) comparisonMoneyChart.destroy();
- comparisonMoneyChart=new Chart(document.getElementById('comparisonMoneyChart'),{
-   type:'line',data:{labels:labels,datasets:[
-    {label:'Sesión 74',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
-    {label:'Sesión 73',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
-   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
-   scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,ticks:{color:'#777',callback:function(v){return money(v)}},grid:{color:'#1d1d1d'}}}}
- });
+  const labels=points.map(p=>p.label);
+
+  if(comparisonCheckinsChart) comparisonCheckinsChart.destroy();
+  comparisonCheckinsChart=new Chart(document.getElementById('comparisonCheckinsChart'),{
+    type:'line',data:{labels:labels,datasets:[
+     {label:'Sesión 75',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+     {label:'Mejor histórica ('+benchmark+')',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
+    scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,ticks:{color:'#777'},grid:{color:'#1d1d1d'}}}}
+  });
+
+  if(comparisonMoneyChart) comparisonMoneyChart.destroy();
+  comparisonMoneyChart=new Chart(document.getElementById('comparisonMoneyChart'),{
+    type:'line',data:{labels:labels,datasets:[
+     {label:'Sesión 75',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+     {label:'Mejor histórica ('+benchmark+')',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
+    scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,ticks:{color:'#777',callback:function(v){return money(v)}},grid:{color:'#1d1d1d'}}}}
+  });
 }
 function load(){
   document.getElementById('updated').textContent='Cargando datos...';
