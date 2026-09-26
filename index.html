@@ -85,11 +85,40 @@ button:disabled{opacity:.5;cursor:wait}
 
 @keyframes thinkingDots{0%,100%{content:'.';opacity:.35;transform:scaleX(.72)}33%{content:'..';opacity:.65;transform:scaleX(.88)}66%{content:'...';opacity:1;transform:scaleX(1)}}
 
+ .whatsappSupport{
+  position:fixed;
+  right:24px;
+  bottom:88px;
+  z-index:40;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  text-decoration:none;
+  font-family:monospace;
+}
+.waLabel{font-size:9px;letter-spacing:1.2px;color:#666}
+.waButton{
+  padding:10px 14px;
+  border:1px solid #333;
+  background:#050505;
+  color:#fff;
+  font-size:10px;
+  letter-spacing:1px;
+  transition:all .2s ease;
+}
+.whatsappSupport:hover .waButton,
+.whatsappSupport:focus-visible .waButton{border-color:#fff}
+
 .heartMark{position:fixed;right:24px;bottom:22px;width:54px;height:auto;z-index:20;opacity:.95;pointer-events:none}
 
 .heartMark img{display:block;width:100%;height:auto}
 
 @media(max-width:600px){
+  .whatsappSupport{right:14px;bottom:78px}
+  .waLabel{font-size:8px}
+  .waButton{padding:11px 13px;font-size:10px}
+
 
  body{padding:0 14px}
 
@@ -116,6 +145,18 @@ button:disabled{opacity:.5;cursor:wait}
 </head>
 
 <body>
+
+<a
+  id="whatsappSupport"
+  class="whatsappSupport"
+  href="https://wa.me/56990915484?text=Hola%2C%20necesito%20ayuda%20con%20mi%20acceso%20a%20Mi%C3%A9rcoles%20Electr%C3%B3nicos%20%E2%80%94%20Sesi%C3%B3n%2075."
+  target="_blank"
+  rel="noopener"
+  aria-label="Soporte por WhatsApp"
+>
+  <span class="waLabel">¿NECESITAS AYUDA?</span>
+  <span class="waButton">WHATSAPP</span>
+</a>
 
 <main class="wrap">
 
@@ -451,7 +492,21 @@ async function callLatest(fn,args,seq,waitOptions){
 
 }
 
+function updateWhatsAppSupport_(stage){
+  const link=document.getElementById('whatsappSupport');
+  if(!link)return;
+  let message='Hola, necesito ayuda con mi acceso a Miércoles Electrónicos — Sesión 75.';
+  if(stage==='rut')message='Hola, necesito ayuda para consultar mi RUT en Miércoles Electrónicos — Sesión 75.';
+  else if(stage==='email')message='Hola, necesito ayuda con la verificación de mi correo para Miércoles Electrónicos — Sesión 75.';
+  else if(stage==='code')message='Hola, necesito ayuda con mi código de verificación de Miércoles Electrónicos — Sesión 75.';
+  else if(stage==='profile')message='Hola, necesito ayuda para completar mi ficha de Miércoles Electrónicos — Sesión 75.';
+  else if(stage==='checkin')message='Hola, necesito ayuda para confirmar mi check-in de Miércoles Electrónicos — Sesión 75.';
+  else if(stage==='request')message='Hola, necesito ayuda para completar mi solicitud de acceso a Miércoles Electrónicos — Sesión 75.';
+  link.href='https://wa.me/56990915484?text='+encodeURIComponent(message);
+}
+
 function home(){
+  updateWhatsAppSupport_('rut');
 
   actionBusy=false;
 
@@ -738,6 +793,7 @@ function renderPendingRequest(res){
 }
 
 function renderExisting(res){
+  updateWhatsAppSupport_('checkin');
 
   if(res.reservaActual){
 
@@ -810,6 +866,7 @@ function renderExisting(res){
 }
 
 function renderNewUserProfile(rut,refs){
+  updateWhatsAppSupport_('email');
 
   currentRut=rut;
 
@@ -944,6 +1001,7 @@ function showInlineNewUserError(message){
 }
 
 function renderVerifyCode(refs,validadoAnteriormente){
+  updateWhatsAppSupport_('code');
 
   setApp(
 
@@ -1016,6 +1074,7 @@ function renderVerifyCode(refs,validadoAnteriormente){
 }
 
 function renderAssistantProfile(email,refs,validadoAnteriormente){
+  updateWhatsAppSupport_('profile');
 
   setApp(
 
