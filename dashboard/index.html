@@ -108,7 +108,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   </section>
 
   <section class="section">
-    <div class="sectionTitle">VRAVA COMO REFERENCIA · % DE RESERVAS · SESIONES 71—74</div>
+    <div class="sectionTitle">VRAVA COMO REFERENCIA · % RESERVAS Y % CHECK-IN · SESIONES 71—74</div>
     <div class="chartPanel"><div class="chartWrap"><canvas id="vravaHistoryChart"></canvas></div></div>
   </section>
 
@@ -233,35 +233,70 @@ function drawVravaHistoryChart(rows){
  const ctx=document.getElementById('vravaHistoryChart');
  if(!ctx)return;
  if(vravaHistoryChart)vravaHistoryChart.destroy();
+
  const data=(rows||[]).map(x=>({
    sesion:Number(x.sesion||0),
-   vrava:Number(x.vrava||0),
-   total:Number(x.total||0),
-   pct:Number(x.pct||0)
+   reservasVrava:Number(x.reservasVrava||0),
+   reservasTotal:Number(x.reservasTotal||0),
+   reservasPct:Number(x.reservasPct||0),
+   checkinsVrava:Number(x.checkinsVrava||0),
+   checkinsTotal:Number(x.checkinsTotal||0),
+   checkinsPct:Number(x.checkinsPct||0)
  })).filter(x=>x.sesion);
+
+ const fmtPct=v=>Number(v||0).toLocaleString('es-CL',{
+   minimumFractionDigits:1,
+   maximumFractionDigits:1
+ })+'%';
+
  vravaHistoryChart=new Chart(ctx,{
    type:'bar',
    data:{
      labels:data.map(x=>'S'+String(x.sesion)),
-     datasets:[{
-       label:'VRAVA',
-       data:data.map(x=>x.pct),
-       borderWidth:1,
-       borderRadius:4,
-       maxBarThickness:70
-     }]
+     datasets:[
+       {
+         label:'Reservas VRAVA',
+         data:data.map(x=>x.reservasPct),
+         borderWidth:1,
+         borderRadius:4,
+         maxBarThickness:55
+       },
+       {
+         label:'Check-in VRAVA',
+         data:data.map(x=>x.checkinsPct),
+         borderWidth:1,
+         borderRadius:4,
+         maxBarThickness:55
+       }
+     ]
    },
    options:{
      responsive:true,
      maintainAspectRatio:false,
      plugins:{
-       legend:{display:false},
+       legend:{
+         display:true,
+         labels:{
+           color:'#aaa',
+           boxWidth:12,
+           padding:14,
+           font:{size:10}
+         }
+       },
        tooltip:{
          callbacks:{
            label:function(item){
              const x=data[item.dataIndex];
-             return ' '+x.pct.toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'% ('+
-               x.vrava.toLocaleString('es-CL')+' de '+x.total.toLocaleString('es-CL')+' reservas)';
+
+             if(item.datasetIndex===0){
+               return ' Reservas VRAVA: '+fmtPct(x.reservasPct)+
+                 ' ('+x.reservasVrava.toLocaleString('es-CL')+
+                 ' de '+x.reservasTotal.toLocaleString('es-CL')+')';
+             }
+
+             return ' Check-in VRAVA: '+fmtPct(x.checkinsPct)+
+               ' ('+x.checkinsVrava.toLocaleString('es-CL')+
+               ' de '+x.checkinsTotal.toLocaleString('es-CL')+')';
            }
          }
        }
@@ -273,10 +308,24 @@ function drawVravaHistoryChart(rows){
        },
        y:{
          beginAtZero:true,
-         suggestedMax:Math.max(10, Math.ceil(Math.max.apply(null,data.map(x=>x.pct).concat([0]))/10)*10),
+         suggestedMax:Math.max(
+           10,
+           Math.ceil(
+             Math.max.apply(
+               null,
+               data
+                 .map(x=>Math.max(x.reservasPct,x.checkinsPct))
+                 .concat([0])
+             ) / 10
+           ) * 10
+         ),
          ticks:{
            color:'#777',
-           callback:function(v){return Number(v).toLocaleString('es-CL',{maximumFractionDigits:0})+'%'}
+           callback:function(v){
+             return Number(v).toLocaleString('es-CL',{
+               maximumFractionDigits:0
+             })+'%';
+           }
          },
          grid:{color:'#1d1d1d'}
        }
