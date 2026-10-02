@@ -167,13 +167,13 @@ button:disabled{opacity:.5;cursor:wait}
     <img class="sessionArt" src="session75_art.png" alt="">
   </div>
 
-  <div class="session">SESSION_075 // SESION_LXXV</div>
+  <div class="session">SESSION_CURRENT // SESION_CURRENT</div>
 
   <div class="line"></div>
 
   <div id="app"></div>
 
-  <div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_075 // ACCESS CONTROL</div>
+  <div class="footer">COMMUNITY SYSTEM // 2026<br>SESSION_CURRENT // ACCESS CONTROL</div>
 
 <div class="heartMark" aria-hidden="true">
 
@@ -189,7 +189,10 @@ button:disabled{opacity:.5;cursor:wait}
 
 const API_URL='https://script.google.com/macros/s/AKfycby2Fv8OwTARjkY3S1WVxgyNzqxny24qufWQkymsJ1AAptfY_EFpwaRtNnmeX3l5_EkMww/exec';
 
-const SESSION=75;
+let SESSION=0;
+let SESSION_ROMAN='';
+let SESSION_NAME='';
+let SESSION_DATE='';
 
 const API_TIMEOUT_MS=60000;
 
@@ -495,14 +498,48 @@ async function callLatest(fn,args,seq,waitOptions){
 function updateWhatsAppSupport_(stage){
   const link=document.getElementById('whatsappSupport');
   if(!link)return;
-  let message='Hola, necesito ayuda con mi acceso a Miércoles Electrónicos — Sesión 75.';
-  if(stage==='rut')message='Hola, necesito ayuda para consultar mi RUT en Miércoles Electrónicos — Sesión 75.';
-  else if(stage==='email')message='Hola, necesito ayuda con la verificación de mi correo para Miércoles Electrónicos — Sesión 75.';
-  else if(stage==='code')message='Hola, necesito ayuda con mi código de verificación de Miércoles Electrónicos — Sesión 75.';
-  else if(stage==='profile')message='Hola, necesito ayuda para completar mi ficha de Miércoles Electrónicos — Sesión 75.';
-  else if(stage==='checkin')message='Hola, necesito ayuda para confirmar mi check-in de Miércoles Electrónicos — Sesión 75.';
-  else if(stage==='request')message='Hola, necesito ayuda para completar mi solicitud de acceso a Miércoles Electrónicos — Sesión 75.';
+  let message='Hola, necesito ayuda con mi acceso a Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  if(stage==='rut')message='Hola, necesito ayuda para consultar mi RUT en Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  else if(stage==='email')message='Hola, necesito ayuda con la verificación de mi correo para Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  else if(stage==='code')message='Hola, necesito ayuda con mi código de verificación de Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  else if(stage==='profile')message='Hola, necesito ayuda para completar mi ficha de Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  else if(stage==='checkin')message='Hola, necesito ayuda para confirmar mi check-in de Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
+  else if(stage==='request')message='Hola, necesito ayuda para completar mi solicitud de acceso a Miércoles Electrónicos — Sesión '+(SESSION||'actual')+'.';
   link.href='https://wa.me/56990915484?text='+encodeURIComponent(message);
+}
+
+function updateSessionUi_(data){
+
+  if(!data||!data.ok||!data.sesion)return;
+
+  SESSION=Number(data.sesion)||0;
+  SESSION_ROMAN=data.romano||'';
+  SESSION_NAME=data.nombre||'';
+  SESSION_DATE=data.fecha||'';
+
+  const sessionEl=document.querySelector('.session');
+  if(sessionEl)sessionEl.textContent='SESSION_'+String(SESSION).padStart(3,'0')+' // SESION_'+SESSION_ROMAN;
+
+  const footer=document.querySelector('.footer');
+  if(footer)footer.innerHTML='COMMUNITY SYSTEM // 2026<br>SESSION_'+String(SESSION).padStart(3,'0')+' // ACCESS CONTROL';
+
+  updateWhatsAppSupport_('rut');
+
+}
+
+async function initializeSession_(){
+
+  try{
+
+    const result=await apiCall('obtenerSesionActual',[],{silent:true});
+    updateSessionUi_(result);
+
+  }catch(e){
+
+    console.warn('[ME SESSION] '+(e&&e.message?e.message:e));
+
+  }
+
 }
 
 function home(){
@@ -651,7 +688,7 @@ function bindReference(data,action){
 
       if(action==='reserve'){
 
-        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'CONFIRMING CHECKIN',messages:['REGISTERING YOUR CHECKIN','SAVING YOUR SESSION 75 ACCESS','CONFIRMING YOUR RESERVATION','ALMOST THERE']});
+        r=await apiCall('crearReserva',[currentRut,currentEmail,referencia,otro],{targetId:'actionStatus',title:'CONFIRMING CHECKIN',messages:['REGISTERING YOUR CHECKIN','SAVING YOUR SESSION '+SESSION+' ACCESS','CONFIRMING YOUR RESERVATION','ALMOST THERE']});
 
       }else if(action==='newRequest'){
 
@@ -708,7 +745,7 @@ function bindReference(data,action){
 
           renderCheckinSummary(data)+
 
-          '<div class="status">TU CHECKIN PARA LA SESIÓN '+SESSION+' · SESION '+SESSION+' YA ESTÁ CONFIRMADO.</div>'+
+          '<div class="status">TU CHECKIN PARA LA SESIÓN '+SESSION+' · SESION '+SESSION_ROMAN+' YA ESTÁ CONFIRMADO.</div>'+
 
           renderConditions(data.condiciones)+
 
@@ -805,7 +842,7 @@ function renderExisting(res){
 
       (res.validadoAnteriormente?'<div class="description">ESTADO: <strong>MIEMBRO</strong></div>':'')+
 
-      '<div class="status">TU CHECKIN PARA LA SESIÓN '+SESSION+' · SESION '+SESSION+' YA ESTÁ CONFIRMADO.</div>'+ 
+      '<div class="status">TU CHECKIN PARA LA SESIÓN '+SESSION+' · SESION '+SESSION_ROMAN+' YA ESTÁ CONFIRMADO.</div>'+ 
 
       renderConditions(res.condiciones)+
 
@@ -938,7 +975,7 @@ function renderNewUserProfile(rut,refs){
 
       // consistencia para registros que aún no existen en COMUNIDAD.
 
-      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],{targetId:'newUserEmailStatus',title:'CHECKING REQUESTS',messages:['CHECKING PREVIOUS REQUESTS','VERIFYING SESSION 75 STATUS','CHECKING YOUR ACCESS RECORD','ALMOST THERE']});
+      const existingRequest=await apiCall('consultarCorreoAntesDeVerificar',[email,currentRut],{targetId:'newUserEmailStatus',title:'CHECKING REQUESTS',messages:['CHECKING PREVIOUS REQUESTS','VERIFYING SESSION '+SESSION+' STATUS','CHECKING YOUR ACCESS RECORD','ALMOST THERE']});
 
       if(!existingRequest||!existingRequest.ok)throw new Error(existingRequest&&existingRequest.mensaje?existingRequest.mensaje:'NO SE PUDO CONSULTAR LAS SOLICITUDES.');
 
@@ -1282,6 +1319,13 @@ async function consult(){
 
     });
 
+    if(res&&res.sesion){
+      SESSION=Number(res.sesion)||SESSION;
+      SESSION_ROMAN=res.romano||SESSION_ROMAN;
+      if(res.nombreSesion)SESSION_NAME=res.nombreSesion;
+      if(res.fechaSesion)SESSION_DATE=res.fechaSesion;
+    }
+
     actionBusy=false;
 
     if(!res||!res.ok)return error(res&&res.mensaje?res.mensaje:'NO SE PUDO CONSULTAR EL RUT.');
@@ -1323,6 +1367,7 @@ async function consult(){
 }
 
 home();
+initializeSession_();
 
 </script>
 
