@@ -13,7 +13,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 .wrap{width:min(1180px,94vw);margin:0 auto;padding:24px 0 48px}
 .header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-bottom:1px solid var(--line);padding-bottom:18px}
 .brand{font-weight:900;font-size:21px;letter-spacing:.4px}.brand span{color:var(--red)}
-.session{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-align:right}
+.session{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-align:right}.sessionControl{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px}.sessionSelect{background:#080808;color:#fff;border:1px solid #2a2a2a;padding:7px 30px 7px 9px;font-size:11px;border-radius:4px;min-width:220px}.sessionHint{font-size:9px;color:#666;letter-spacing:.8px;text-transform:uppercase}
 .statusLine{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin-top:12px}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
 .kpi{background:var(--panel);border:1px solid var(--line);padding:18px}.kpiLabel{font-size:10px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase}.kpiValue{font-size:31px;font-weight:900;margin-top:7px}.kpiSub{margin-top:6px;font-size:11px;color:var(--muted)}
@@ -36,14 +36,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
 .otherItem span:nth-child(2),.otherItem span:nth-child(3),.otherItem span:nth-child(4){text-align:right;color:#aaa}
 .good{font-weight:900}.foot{margin-top:24px;color:#444;text-align:center;font-size:9px;letter-spacing:1px}
 @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.requestGrid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.header{display:block}.session{text-align:left;margin-top:8px}.kpis{grid-template-columns:1fr 1fr}.kpiValue{font-size:24px}.row{grid-template-columns:minmax(90px,1fr) 45px 58px}}
+@media(max-width:560px){.header{display:block}.session{text-align:left;margin-top:8px}.sessionControl{justify-content:flex-start}.sessionSelect{width:100%;max-width:100%}.kpis{grid-template-columns:1fr 1fr}.kpiValue{font-size:24px}.row{grid-template-columns:minmax(90px,1fr) 45px 58px}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="header">
     <div><div class="brand">MIÉRCOLES <span>ELECTRÓNICOS</span></div><div class="statusLine"><span class="dot" id="liveDot"></span><span id="updated">Cargando datos...</span></div></div>
-    <div class="session">DASHBOARD · SESSION 075<br>FULL BOILER 360</div>
+    <div class="session">DASHBOARD · <span id="sessionCode">SESSION —</span><br><span id="sessionName">Cargando sesión...</span><div class="sessionControl"><span class="sessionHint">Sesión</span><select id="sessionSelect" class="sessionSelect" aria-label="Seleccionar sesión"></select></div></div>
   </div>
 
   <div class="kpis">
@@ -108,7 +108,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
   </section>
 
   <section class="section">
-    <div class="sectionTitle">VRAVA COMO REFERENCIA · % RESERVAS Y % CHECK-IN · SESIONES 71—75</div>
+    <div class="sectionTitle">VRAVA COMO REFERENCIA · % RESERVAS Y % CHECK-IN · HISTÓRICO</div>
     <div class="chartPanel"><div class="chartWrap"><canvas id="vravaHistoryChart"></canvas></div></div>
   </section>
 
@@ -117,20 +117,20 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui
     <div class="chartPanel"><div class="chartWrap"><canvas id="attendanceChart"></canvas></div></div>
   </section>
   <section class="section">
-    <div class="sectionTitle">SESSION 075 VS MEJOR CURVA S71—S74 · COMPARACIÓN ACUMULADA</div>
+    <div class="sectionTitle">SESIÓN ACTUAL VS MEJOR CURVA HISTÓRICA · COMPARACIÓN ACUMULADA</div>
     <div class="grid2">
-      <div class="chartPanel"><div class="panelTitle">CHECK-IN · S75 VS MEJOR S71—S74</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
-      <div class="chartPanel"><div class="panelTitle">INGRESOS · S75 VS MEJOR S71—S74</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">CHECK-IN · SESIÓN ACTUAL VS MEJOR HISTÓRICA</div><div class="chartWrap"><canvas id="comparisonCheckinsChart"></canvas></div></div>
+      <div class="chartPanel"><div class="panelTitle">INGRESOS · SESIÓN ACTUAL VS MEJOR HISTÓRICA</div><div class="chartWrap"><canvas id="comparisonMoneyChart"></canvas></div></div>
     </div>
     <div class="panel" style="margin-top:12px;overflow-x:auto">
       <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12px">
-        <thead><tr><th>Hora</th><th>Check-in S75</th><th>Mejor S71—S74</th><th>Var. Check-in</th><th>$ S75</th><th>$ Mejor S71—S74</th><th>Var. $</th></tr></thead>
+        <thead><tr><th>Hora</th><th id="cmpActualHeader">Check-in actual</th><th id="cmpBenchmarkHeader">Mejor histórica</th><th>Var. Check-in</th><th id="cmpMoneyActualHeader">$ actual</th><th id="cmpMoneyBenchmarkHeader">$ mejor histórico</th><th>Var. $</th></tr></thead>
         <tbody id="comparisonBody"></tbody>
       </table>
     </div>
   </section>
 
-  <div class="foot">ME DASHBOARD // SOLO LECTURA // SESSION 075</div>
+  <div class="foot">ME DASHBOARD // SOLO LECTURA // <span id="footerSession">SESSION —</span></div>
 </div>
 
 <script>
@@ -163,7 +163,9 @@ function api(done){
   window[cb]=d=>finish(null,d);
   s.onerror=()=>finish(new Error('NO SE PUDO CONECTAR CON EL BACKEND DASHBOARD.'),null);
 
-  const url=CONFIG.BACKEND_URL+'?api=1&fn=dashboard&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+  const requestedSession = new URLSearchParams(window.location.search).get('sesion');
+  let url=CONFIG.BACKEND_URL+'?api=1&fn=dashboard&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+  if(requestedSession) url+='&sesion='+encodeURIComponent(requestedSession);
   s.src=url;
   document.body.appendChild(s);
 }
@@ -173,7 +175,28 @@ function renderRows(id,rows,isMoney){
   const max=Math.max.apply(null,rows.map(x=>Number(x.value||0)),[1]);
   el.innerHTML=rows.map(x=>'<div class="row"><div class="key" title="'+esc(x.key)+'">'+esc(x.key)+'</div><div>'+ (isMoney?money(x.value):Number(x.value||0).toLocaleString('es-CL')) +'</div><div class="pct">'+pct(x.pct||0)+'</div><div class="bar" style="grid-column:1 / -1"><div class="fill" style="width:'+((Number(x.value||0)/max)*100)+'%"></div></div></div>').join('');
 }
+function updateUrlSession(session){
+  const url=new URL(window.location.href);
+  if(session) url.searchParams.set('sesion',session);
+  else url.searchParams.delete('sesion');
+  window.history.replaceState({},'',url.toString());
+}
+function renderSessionSelector(d){
+  const select=document.getElementById('sessionSelect');
+  if(!select)return;
+  const sessions=(d.sesionesDisponibles||[]).slice().sort((a,b)=>Number(a.sesion)-Number(b.sesion));
+  select.innerHTML=sessions.map(x=>'<option value="'+esc(x.sesion)+'">S'+esc(x.sesion)+(Number(x.sesion)===Number(d.ultimaSesion)?' · ACTUAL':'')+' · '+esc(x.nombre||'')+'</option>').join('');
+  select.value=String(d.sesion);
+  select.onchange=()=>{updateUrlSession(select.value);load();};
+  const code=document.getElementById('sessionCode');
+  const name=document.getElementById('sessionName');
+  const foot=document.getElementById('footerSession');
+  if(code)code.textContent='SESSION '+String(d.sesion).padStart(3,'0');
+  if(name)name.textContent=(d.nombreSesion||'').toUpperCase();
+  if(foot)foot.textContent='SESSION '+String(d.sesion).padStart(3,'0');
+}
 function render(d){
+ renderSessionSelector(d);
  document.getElementById('updated').textContent='Actualizado '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
  document.getElementById('kSolicitudes').textContent=d.solicitudes.total;
  document.getElementById('kReservas').textContent=d.reservas.total;
@@ -387,7 +410,13 @@ function signedPct(v){
 }
 function drawComparison(c){
   const points=c.puntos||[], body=document.getElementById('comparisonBody');
-  const benchmark='S'+String(c.sesionBenchmark||'—');
+  const benchmark=c.sesionBenchmark ? 'S'+String(c.sesionBenchmark) : 'SIN HISTÓRICO';
+  const actualLabel='S'+String(c.sesionActual||'—');
+
+  if(document.getElementById('cmpActualHeader')) document.getElementById('cmpActualHeader').textContent='Check-in '+actualLabel;
+  if(document.getElementById('cmpBenchmarkHeader')) document.getElementById('cmpBenchmarkHeader').textContent='Mejor '+benchmark;
+  if(document.getElementById('cmpMoneyActualHeader')) document.getElementById('cmpMoneyActualHeader').textContent='$ '+actualLabel;
+  if(document.getElementById('cmpMoneyBenchmarkHeader')) document.getElementById('cmpMoneyBenchmarkHeader').textContent='$ '+benchmark;
 
   if(body) body.innerHTML=points.map(p=>'<tr>'+
     '<td>'+esc(p.label)+'</td>'+
@@ -404,7 +433,7 @@ function drawComparison(c){
   if(comparisonCheckinsChart) comparisonCheckinsChart.destroy();
   comparisonCheckinsChart=new Chart(document.getElementById('comparisonCheckinsChart'),{
     type:'line',data:{labels:labels,datasets:[
-     {label:'Sesión 75',data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+     {label:actualLabel,data:points.map(p=>Number(p.checkinsActual||0)),tension:.25,pointRadius:3,borderWidth:2},
      {label:'Mejor histórica ('+benchmark+')',data:points.map(p=>Number(p.checkinsAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
     scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,precision:0,ticks:{color:'#777'},grid:{color:'#1d1d1d'}}}}
@@ -413,7 +442,7 @@ function drawComparison(c){
   if(comparisonMoneyChart) comparisonMoneyChart.destroy();
   comparisonMoneyChart=new Chart(document.getElementById('comparisonMoneyChart'),{
     type:'line',data:{labels:labels,datasets:[
-     {label:'Sesión 75',data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
+     {label:actualLabel,data:points.map(p=>Number(p.ingresosActual||0)),tension:.25,pointRadius:3,borderWidth:2},
      {label:'Mejor histórica ('+benchmark+')',data:points.map(p=>Number(p.ingresosAnterior||0)),tension:.25,pointRadius:3,borderWidth:2}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}},
     scales:{x:{ticks:{color:'#777'},grid:{color:'#1d1d1d'}},y:{beginAtZero:true,ticks:{color:'#777',callback:function(v){return money(v)}},grid:{color:'#1d1d1d'}}}}
