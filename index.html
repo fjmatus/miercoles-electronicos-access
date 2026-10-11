@@ -381,27 +381,78 @@ function startWait(targetId,title,messages){
 
 }
 
+function clearRecoverableActionError_(){
+
+  const box=document.getElementById('recoverableActionError');
+
+  if(box)box.remove();
+
+}
+
+// Un error de red no debe destruir el paso actual ni borrar los datos ingresados.
 function error(msg){
 
   actionBusy=false;
 
-  setApp(
+  const app=document.getElementById('app');
 
-    '<div class="title"><span class="prompt">&gt;</span> CONEXIÓN TEMPORALMENTE NO DISPONIBLE</div>'+
+  if(!app)return;
 
-    '<div class="status error">'+esc(msg)+'</div>'+
+  let box=document.getElementById('recoverableActionError');
 
-    '<button class="secondary" id="backBtn">BACK</button>'
+  if(!box){
 
-  );
+    box=document.createElement('div');
 
-  const back=document.getElementById('backBtn');
+    box.id='recoverableActionError';
 
-  if(back)back.onclick=home;
+    box.className='status error';
+
+    box.setAttribute('role','alert');
+
+    app.insertBefore(box,app.firstChild);
+
+  }
+
+  box.textContent=String(msg==null?'No se pudo completar este paso.':msg);
 
 }
 
+// Solo se reintentan consultas de lectura. Nunca repetir automáticamente
+// envíos de correo, validación de códigos ni escrituras con resultado incierto.
 function apiCall(fn,args,waitOptions){
+
+  clearRecoverableActionError_();
+
+  const safeRead=['obtenerSesionActual','consultarRut','consultarEmail','consultarCorreoAntesDeVerificar'].indexOf(fn)!==-1;
+
+  const maxAttempts=safeRead?3:1;
+
+  function run(attempt){
+
+    return apiCallSingle_(fn,args,waitOptions).catch(function(err){
+
+      const retryable=err&&(err.code==='NETWORK_ERROR'||err.code==='NO_CALLBACK');
+
+      if(!retryable||attempt>=maxAttempts)throw err;
+
+      console.warn('[ME PERF] RETRY',fn,'attempt '+(attempt+1)+'/'+maxAttempts);
+
+      return new Promise(function(resolve){setTimeout(resolve,400*attempt);}).then(function(){
+
+        return run(attempt+1);
+
+      });
+
+    });
+
+  }
+
+  return run(1);
+
+}
+
+function apiCallSingle_(fn,args,waitOptions){
 
   return new Promise(function(resolve,reject){
 
@@ -433,6 +484,8 @@ function apiCall(fn,args,waitOptions){
     function cleanup(){
 
       clearTimeout(timer);
+
+      clearTimeout(softTimer);
 
       stopWait();
 
@@ -468,13 +521,29 @@ function apiCall(fn,args,waitOptions){
 
       console.log('[ME PERF] SCRIPT LOAD',fn,Math.round(performance.now()-perfStart)+' ms');
 
+      // Un JSONP válido ejecuta el callback antes del evento load.
+      // Si no ocurrió, tratamos la respuesta como incompleta y no esperamos 60 s.
+      if(!finished){
+
+        const missingCallbackError=new Error('La conexión respondió sin confirmar la consulta.');
+
+        missingCallbackError.code='NO_CALLBACK';
+
+        finish(missingCallbackError);
+
+      }
+
     };
 
     script.onerror=function(e){
 
       console.error('[ME PERF] SCRIPT ERROR',fn,Math.round(performance.now()-perfStart)+' ms',e);
 
-      finish(new Error('No pudimos completar la conexión con el sistema. Por favor, inténtalo nuevamente.'));
+      const networkError=new Error('No pudimos completar la conexión con el sistema. Por favor, inténtalo nuevamente.');
+
+      networkError.code='NETWORK_ERROR';
+
+      finish(networkError);
 
     };
 
@@ -745,6 +814,14 @@ function bindReference(data,action){
 
         actionBusy=false;
 
+        btn.disabled=false;
+
+        btn.textContent=action==='reserve'?'FINALIZAR MI CHECKIN':'CONFIRMAR SOLICITUD';
+
+        const operationStatus=document.getElementById('actionStatus');
+
+        if(operationStatus)operationStatus.innerHTML='';
+
         return error(r&&r.mensaje?r.mensaje:'NO SE PUDO GUARDAR.');
 
       }
@@ -805,6 +882,14 @@ function bindReference(data,action){
     }catch(e){
 
       actionBusy=false;
+
+      btn.disabled=false;
+
+      btn.textContent=action==='reserve'?'FINALIZAR MI CHECKIN':'CONFIRMAR SOLICITUD';
+
+      const operationStatus=document.getElementById('actionStatus');
+
+      if(operationStatus)operationStatus.innerHTML='';
 
       error(e&&e.message?e.message:'NO SE PUDO GUARDAR.');
 
@@ -1121,6 +1206,14 @@ function renderVerifyCode(refs,validadoAnteriormente){
 
       actionBusy=false;
 
+      btn.disabled=false;
+
+      btn.textContent='VERIFICAR CORREO';
+
+      const verifyStatus=document.getElementById('verifyStatus');
+
+      if(verifyStatus)verifyStatus.innerHTML='';
+
       error(e&&e.message?e.message:'CÓDIGO INCORRECTO O EXPIRADO.');
 
     }
@@ -1347,7 +1440,21 @@ async function consult(){
 
     actionBusy=false;
 
-    if(!res||!res.ok)return error(res&&res.mensaje?res.mensaje:'NO SE PUDO CONSULTAR EL RUT.');
+    if(!res||!res.ok){
+
+      const consultMessage=res&&res.mensaje?res.mensaje:'NO SE PUDO CONSULTAR EL RUT.';
+
+      // Una respuesta funcional de error también debe restaurar el formulario;
+      // no solo los errores de transporte que caen al catch.
+      home();
+
+      const rutInputAfterError=document.getElementById('rutInput');
+
+      if(rutInputAfterError)rutInputAfterError.value=value;
+
+      return error(consultMessage+' TU RUT SE CONSERVÓ; PUEDES VOLVER A INTENTAR.');
+
+    }
 
     currentRut=res.rut||'';
 
@@ -1379,7 +1486,13 @@ async function consult(){
 
     actionBusy=false;
 
-    error(e&&e.message==='TIMEOUT_FINAL'?'EL SISTEMA ESTÁ TOMANDO MÁS TIEMPO DE LO HABITUAL. LA CONSULTA PUEDE SEGUIR PROCESÁNDOSE. ESPERA UNOS SEGUNDOS ANTES DE VOLVER A INTENTAR.':(e&&e.message?e.message:'NO SE PUDO CONSULTAR EL RUT.'));
+    home();
+
+    const rutInputAfterError=document.getElementById('rutInput');
+
+    if(rutInputAfterError)rutInputAfterError.value=value;
+
+    error(e&&e.message==='TIMEOUT_FINAL'?'EL SISTEMA ESTÁ TOMANDO MÁS TIEMPO DE LO HABITUAL. LA CONSULTA PUEDE SEGUIR PROCESÁNDOSE. TU RUT SE CONSERVÓ; PUEDES VOLVER A INTENTAR.':(e&&e.message?e.message:'NO SE PUDO CONSULTAR EL RUT. TU RUT SE CONSERVÓ; PUEDES VOLVER A INTENTAR.'));
 
   }
 
