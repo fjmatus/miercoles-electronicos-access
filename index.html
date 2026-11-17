@@ -174,6 +174,83 @@ button:disabled{opacity:.5;cursor:wait}
 
  .tramo{font-size:13px;padding:14px 12px}
 
+
+
+
+ /* ME // VISUAL HUMAN CHECK */
+.meCaptcha {
+  margin-top: 22px;
+  padding: 15px;
+  border: 1px solid #292929;
+  background: #080808;
+}
+
+.meCaptchaHeader {
+  display: flex;
+  justify-content: space-between;
+  color: #777;
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin-bottom: 15px;
+}
+
+.meCaptchaTarget {
+  background: #101010;
+  border: 1px solid #222;
+  padding: 12px;
+  text-align: center;
+  margin: 12px 0;
+}
+
+.meCaptchaTarget strong {
+  display: block;
+  color: var(--red);
+  font-size: 34px;
+}
+
+.meCaptchaTarget span {
+  color: #666;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.meCaptchaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.meCaptchaOption {
+  margin: 0;
+  padding: 12px 4px;
+  min-height: 52px;
+  background: #101010;
+  border: 1px solid #333;
+  color: #eee;
+  font: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.meCaptchaOption.selected {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.meCaptchaStatus {
+  margin-top: 12px;
+  color: #666;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+@media(max-width:600px) {
+  .meCaptchaOption {
+    min-height: 54px;
+    font-size: 23px;
+  }
+}
+
 }
 
 </style>
@@ -1044,7 +1121,36 @@ function renderNewUserProfile(rut,refs){
 
     '<label>EMAIL</label><input id="newEmail" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com">'+ 
 
-    '<div id="newUserEmailStatus"></div>'+ 
+    '<div id="newUserEmailStatus"></div>'+ '<label>EMAIL</label><input id="newEmail" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com">'+
+
+'<div class="meCaptcha">'+
+
+  '<div class="meCaptchaHeader">'+
+    '<span>ME // HUMAN VERIFICATION</span>'+
+    '<span>01 / 01</span>'+
+  '</div>'+
+
+  '<div style="font-size:10px;color:#aaa">SELECCIONA EL SÍMBOLO OBJETIVO</div>'+
+
+  '<div class="meCaptchaTarget">'+
+    '<strong>⌘</strong>'+
+    '<span>TARGET SYMBOL</span>'+
+  '</div>'+
+
+  '<div class="meCaptchaGrid">'+
+    '<button type="button" class="meCaptchaOption">⌖</button>'+
+    '<button type="button" class="meCaptchaOption">⌬</button>'+
+    '<button type="button" class="meCaptchaOption">⌘</button>'+
+    '<button type="button" class="meCaptchaOption">◈</button>'+
+  '</div>'+
+
+  '<div class="meCaptchaStatus">HUMAN VERIFICATION // COMMUNITY ACCESS</div>'+
+
+'</div>'+
+
+'<div id="newUserEmailStatus"></div>'+
+
+'<button id="sendEmailBtn">ENVIAR CÓDIGO</button>'+
 
     '<button id="sendEmailBtn">ENVIAR CÓDIGO</button>'+ 
 
@@ -1057,6 +1163,23 @@ function renderNewUserProfile(rut,refs){
   const emailInput=document.getElementById('newEmail');
 
   const btn=document.getElementById('sendEmailBtn');
+
+
+document.querySelectorAll('.meCaptchaOption').forEach(function(option){
+
+  option.onclick=function(){
+
+    document.querySelectorAll('.meCaptchaOption').forEach(function(item){
+      item.classList.remove('selected');
+    });
+
+    this.classList.add('selected');
+
+  };
+
+});
+
+ 
 
   emailInput.focus();
 
