@@ -1119,40 +1119,12 @@ function renderNewUserProfile(rut,refs){
 
     '<div class="description">Ingresa tu correo para verificar que pertenece a ti. Te enviaremos un código antes de completar tu ficha.</div>'+ 
 
-    '<label>EMAIL</label><input id="newEmail" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com">'+ 
+'<label>EMAIL</label><input id="newEmail" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com">'+
 
-    '<div id="newUserEmailStatus"></div>'+ '<label>EMAIL</label><input id="newEmail" type="email" inputmode="email" autocomplete="email" placeholder="tu@email.com">'+
-
-'<div class="meCaptcha">'+
-
-  '<div class="meCaptchaHeader">'+
-    '<span>ME // HUMAN VERIFICATION</span>'+
-    '<span>01 / 01</span>'+
-  '</div>'+
-
-  '<div style="font-size:10px;color:#aaa">SELECCIONA EL SÍMBOLO OBJETIVO</div>'+
-
-  '<div class="meCaptchaTarget">'+
-    '<strong>⌘</strong>'+
-    '<span>TARGET SYMBOL</span>'+
-  '</div>'+
-
-  '<div class="meCaptchaGrid">'+
-    '<button type="button" class="meCaptchaOption">⌖</button>'+
-    '<button type="button" class="meCaptchaOption">⌬</button>'+
-    '<button type="button" class="meCaptchaOption">⌘</button>'+
-    '<button type="button" class="meCaptchaOption">◈</button>'+
-  '</div>'+
-
-  '<div class="meCaptchaStatus">HUMAN VERIFICATION // COMMUNITY ACCESS</div>'+
-
-'</div>'+
-
-'<div id="newUserEmailStatus"></div>'+
+'<div id="newUserEmailStatus"></div>'+ 
 
 '<button id="sendEmailBtn">ENVIAR CÓDIGO</button>'+
-
-    '<button id="sendEmailBtn">ENVIAR CÓDIGO</button>'+ 
+   
 
     '<button class="secondary" id="backBtn">BACK</button>'
 
@@ -1165,19 +1137,7 @@ function renderNewUserProfile(rut,refs){
   const btn=document.getElementById('sendEmailBtn');
 
 
-document.querySelectorAll('.meCaptchaOption').forEach(function(option){
 
-  option.onclick=function(){
-
-    document.querySelectorAll('.meCaptchaOption').forEach(function(item){
-      item.classList.remove('selected');
-    });
-
-    this.classList.add('selected');
-
-  };
-
-});
 
  
 
