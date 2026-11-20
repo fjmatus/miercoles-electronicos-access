@@ -89,6 +89,15 @@ button:disabled{opacity:.5;cursor:wait}
 
 .small{margin-top:14px;color:#666;font-size:9px;line-height:1.7}
 
+.openingNotice{margin:20px 0 14px;padding-left:14px;border-left:2px solid #d4af37}
+.openingKicker{color:#d4af37;font-size:10px;letter-spacing:1.5px}
+.openingDate{margin-top:7px;color:#aaa;font-size:12px;line-height:1.7}
+.countdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:20px 0 0}
+.countdownUnit{padding:12px 6px;border:1px solid #292929;background:#080808;text-align:center}
+.countdownValue{display:block;color:#d4af37;font-size:25px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.countdownLabel{display:block;margin-top:6px;color:#777;font-size:9px;letter-spacing:1px}
+.countdownEnded{grid-column:1/-1;padding:15px;border:1px solid #d4af37;color:#d4af37;font-size:12px;letter-spacing:1px;text-align:center}
+
 .footer{margin-top:48px;color:#444;font-size:9px;line-height:1.8}
 
  .privacyLink {
@@ -327,6 +336,8 @@ let currentData=null;
 let requestSeq=0;
 
 let actionBusy=false;
+
+let openingCountdownTimer=null;
 
 function esc(v){
 
@@ -730,43 +741,84 @@ async function initializeSession_(){
 
 }
 
+function santiagoTimestamp_(year,month,day,hour,minute){
+  const targetUtc=Date.UTC(year,month-1,day,hour,minute,0);
+  let guess=targetUtc;
+  const formatter=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Santiago',year:'numeric',month:'numeric',day:'numeric',
+    hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'
+  });
+  for(let i=0;i<4;i++){
+    const parts=formatter.formatToParts(new Date(guess));
+    const values={};
+    parts.forEach(function(part){if(part.type!=='literal')values[part.type]=Number(part.value);});
+    const displayedUtc=Date.UTC(values.year,values.month-1,values.day,values.hour,values.minute,values.second);
+    const correction=targetUtc-displayedUtc;
+    if(!correction)break;
+    guess+=correction;
+  }
+  return guess;
+}
+
+const OPENING_AT=santiagoTimestamp_(2026,11,22,19,0);
+
+function updateOpeningCountdown_(){
+  const countdown=document.getElementById('openingCountdown');
+  if(!countdown){
+    if(openingCountdownTimer){clearInterval(openingCountdownTimer);openingCountdownTimer=null;}
+    return;
+  }
+
+  const remaining=Math.max(0,OPENING_AT-Date.now());
+  if(remaining===0){
+    countdown.innerHTML='<div class="countdownEnded">EL REGISTRO ABRE AHORA</div>';
+    if(openingCountdownTimer){clearInterval(openingCountdownTimer);openingCountdownTimer=null;}
+    return;
+  }
+
+  const values={
+    days:Math.floor(remaining/86400000),
+    hours:Math.floor(remaining/3600000)%24,
+    minutes:Math.floor(remaining/60000)%60,
+    seconds:Math.floor(remaining/1000)%60
+  };
+  Object.keys(values).forEach(function(unit){
+    const node=document.getElementById('countdown'+unit.charAt(0).toUpperCase()+unit.slice(1));
+    if(node)node.textContent=String(values[unit]).padStart(2,'0');
+  });
+}
+
 function home(){
   updateWhatsAppSupport_('rut');
 
   actionBusy=false;
 
+  if(openingCountdownTimer){clearInterval(openingCountdownTimer);openingCountdownTimer=null;}
+
   setApp(
 
     '<div class="title"><span class="prompt">&gt;</span> COMMUNITY ACCESS</div>'+
 
-    '<div class="description">Mitad de semana. Buena música. Buena gente. Un momento para desconectarse de todo lo demás.<br><br>Ingresa tu RUT para continuar:</div>'+
+    '<div class="description">Mitad de semana. Buena música. Buena gente. Un momento para desconectarse de todo lo demás.</div>'+
 
-    '<label>RUT</label>'+
+    '<div class="openingNotice">'+
+      '<div class="openingKicker">APERTURA DE REGISTRO</div>'+
+      '<div class="openingDate">Sesión 82 · Domingo 22 Nov a las 19 hrs. (Santiago de Chile)</div>'+
+    '</div>'+
 
-    '<input id="rutInput" type="text" inputmode="text" autocapitalize="none" autocomplete="off" placeholder="17394729-k">'+
-
-    '<button id="go">ENTRAR A LA SESIÓN</button>'+
-
-    '<div class="small">Tu RUT es el identificador único en la comunidad miercoleselectronicos.com.</div>'
+    '<div class="countdown" id="openingCountdown" role="timer" aria-label="Cuenta regresiva para la apertura de registro">'+
+      '<div class="countdownUnit"><span class="countdownValue" id="countdownDays">00</span><span class="countdownLabel">DÍAS</span></div>'+
+      '<div class="countdownUnit"><span class="countdownValue" id="countdownHours">00</span><span class="countdownLabel">HORAS</span></div>'+
+      '<div class="countdownUnit"><span class="countdownValue" id="countdownMinutes">00</span><span class="countdownLabel">MIN</span></div>'+
+      '<div class="countdownUnit"><span class="countdownValue" id="countdownSeconds">00</span><span class="countdownLabel">SEG</span></div>'+
+    '</div>'
 
   );
 
-  const go=document.getElementById('go');
-
-  const input=document.getElementById('rutInput');
-
-  if(go)go.onclick=consult;
-
-  if(input){
-
-    input.addEventListener('keydown',function(e){if(e.key==='Enter')consult();});
-
-    setTimeout(function(){input.focus();},30);
-
-  }
+  updateOpeningCountdown_();
+  openingCountdownTimer=setInterval(updateOpeningCountdown_,1000);
 
 }
-
 function renderConditions(list){
 
   if(!Array.isArray(list)||!list.length)return '';
